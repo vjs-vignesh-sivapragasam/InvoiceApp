@@ -16,8 +16,12 @@ import {
   CreditCard, 
   ChevronLeft,
   Camera,
-  UploadCloud
+  UploadCloud,
 } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { db } from '../../../services/supabase';
+import { useNotifications } from '../../../components/NotificationProvider';
+import * as ImagePicker from 'expo-image-picker';
 
 const DetailField = ({ label, placeholder, icon: Icon, value, onChangeText, multiline, width = '48%' }) => {
   const { colors } = useTheme();
@@ -39,8 +43,123 @@ const DetailField = ({ label, placeholder, icon: Icon, value, onChangeText, mult
 };
 
 export const BusinessDetails = () => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const { showToast } = useNotifications();
   const router = useRouter();
+
+  const [loading, setLoading] = React.useState(false);
+  const [profile, setProfile] = React.useState({
+    companyName: '',
+    ownerName: '',
+    gstin: '',
+    email: '',
+    mobile: '',
+    altMobile: '',
+    address: '',
+    address2: '',
+    landmark: '',
+    pincode: '',
+    bankName: '',
+    accountNo: '',
+    ifsc: '',
+    logo: null,
+    ownerPhoto: null
+  });
+
+  React.useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('business_profile');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+           setProfile(prev => ({ ...prev, ...parsed }));
+        }
+      }
+    } catch (storageErr) {
+      console.warn('Web storage load failed, checking cloud...', storageErr);
+    }
+
+    try {
+      console.log('Fetching profile from Supabase (Webview)...');
+      const dbProfile = await db.users.getProfile(1);
+      console.log('Webview received Supabase profile:', dbProfile);
+      
+      if (dbProfile) {
+        setProfile({
+          userid: dbProfile.userid,
+          companyName: dbProfile.optional1 || '',
+          ownerName: dbProfile.username || '',
+          gstin: dbProfile.gstin || '',
+          email: dbProfile.emailid || '',
+          mobile: dbProfile.mobile || '',
+          altMobile: dbProfile.mobile2 || '',
+          address: dbProfile.addressline1 || '',
+          address2: dbProfile.addressline2 || '',
+          landmark: dbProfile.landmark || '',
+          pincode: dbProfile.pincode || '',
+          bankName: dbProfile.bankaccountname || '',
+          accountno: dbProfile.accountno || '',
+          ifsc: dbProfile.ifsc || '',
+          logo: dbProfile.brandlogo || null,
+          ownerPhoto: dbProfile.profilepicture || null
+        });
+      }
+    } catch (e) {
+      console.log('Web profile fetch error:', e);
+    }
+  };
+
+  const pickImage = async (type: 'logo' | 'ownerPhoto') => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: type === 'ownerPhoto' ? [1, 1] : [3, 2],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      const base64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setProfile({ ...profile, [type]: base64 });
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const userId = profile.userid || 1;
+      const dbUpdates = {
+        optional1: profile.companyName,
+        username: profile.ownerName,
+        gstin: profile.gstin,
+        emailid: profile.email,
+        mobile: profile.mobile,
+        mobile2: profile.altMobile,
+        addressline1: profile.address,
+        addressline2: profile.address2,
+        landmark: profile.landmark,
+        pincode: profile.pincode,
+        bankaccountname: profile.bankName,
+        accountno: profile.accountNo,
+        ifsc: profile.ifsc,
+        brandlogo: profile.logo,
+        profilepicture: profile.ownerPhoto
+      };
+
+      await db.users.updateProfile(userId, dbUpdates);
+      await AsyncStorage.setItem('business_profile', JSON.stringify({ ...profile, userid: userId }));
+      showToast('Business Profile Updated!', 'success');
+      setTimeout(() => router.back(), 500);
+    } catch (e: any) {
+      showToast(e.message || 'Failed to update profile', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <WebLayout>
@@ -66,23 +185,39 @@ export const BusinessDetails = () => {
             <View style={styles.imageUploadGrid}>
               <View style={styles.uploadBox}>
                 <TText variant="caption" style={styles.label}>Company Logo</TText>
-                <TouchableOpacity style={[styles.logoUploader, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
-                  <UploadCloud size={32} color={COLORS.primary} />
-                  <TText style={{ fontSize: 12, marginTop: 8 }}>Upload Logo</TText>
+                <TouchableOpacity 
+                   onPress={() => pickImage('logo')}
+                   style={[styles.logoUploader, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary, overflow: 'hidden' }]}
+                >
+                  {profile.logo ? (
+                    <Image source={{ uri: profile.logo }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+                  ) : (
+                    <>
+                      <UploadCloud size={32} color={COLORS.primary} />
+                      <TText style={{ fontSize: 12, marginTop: 8 }}>Upload Logo</TText>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
               <View style={styles.uploadBox}>
                 <TText variant="caption" style={styles.label}>User Picture</TText>
-                <TouchableOpacity style={[styles.avatarUploader, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
-                  <Camera size={24} color={colors.textSecondary} />
+                <TouchableOpacity 
+                   onPress={() => pickImage('ownerPhoto')}
+                   style={[styles.avatarUploader, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary, overflow: 'hidden' }]}
+                >
+                  {profile.ownerPhoto ? (
+                    <Image source={{ uri: profile.ownerPhoto }} style={{ width: '100%', height: '100%' }} />
+                  ) : (
+                    <Camera size={24} color={colors.textSecondary} />
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.grid}>
-              <DetailField label="Company Name" placeholder="Your Company Ltd" icon={Building} />
-              <DetailField label="User/Owner Name" placeholder="John Doe" icon={User} />
-              <DetailField label="Registration / GSTIN" placeholder="22AAAAA0000A1Z5" icon={Hash} />
+              <DetailField label="Company Name" placeholder="Your Company Ltd" icon={Building} value={profile.companyName} onChangeText={v => setProfile({...profile, companyName: v})} />
+              <DetailField label="User/Owner Name" placeholder="John Doe" icon={User} value={profile.ownerName} onChangeText={v => setProfile({...profile, ownerName: v})} />
+              <DetailField label="Registration / GSTIN" placeholder="22AAAAA0000A1Z5" icon={Hash} value={profile.gstin} onChangeText={v => setProfile({...profile, gstin: v})} />
             </View>
           </View>
 
@@ -92,10 +227,13 @@ export const BusinessDetails = () => {
           <View style={styles.section}>
             <TText variant="subtitle" style={styles.sectionTitle}>Contact & Location</TText>
             <View style={styles.grid}>
-              <DetailField label="Email Address" placeholder="hello@company.com" icon={Mail} />
-              <DetailField label="Mobile Number" placeholder="+1 (555) 000-0000" icon={Phone} />
-              <DetailField label="Alternate Mobile" placeholder="+1 (555) 111-1111" icon={Phone} />
-              <DetailField label="Office Address" placeholder="Street, Building, City, ZIP" icon={MapPin} multiline width="100%" />
+              <DetailField label="Email Address" placeholder="hello@company.com" icon={Mail} value={profile.email} onChangeText={v => setProfile({...profile, email: v})} />
+              <DetailField label="Mobile Number" placeholder="+1 (555) 000-0000" icon={Phone} value={profile.mobile} onChangeText={v => setProfile({...profile, mobile: v})} />
+              <DetailField label="Alternate Mobile" placeholder="+1 (555) 111-1111" icon={Phone} value={profile.altMobile} onChangeText={v => setProfile({...profile, altMobile: v})} />
+              <DetailField label="Office Address (Line 1)" placeholder="Street, Building..." icon={MapPin} multiline width="100%" value={profile.address} onChangeText={v => setProfile({...profile, address: v})} />
+              <DetailField label="Address (Line 2)" placeholder="Area, City..." icon={MapPin} value={profile.address2} onChangeText={v => setProfile({...profile, address2: v})} />
+              <DetailField label="Landmark" placeholder="Nearby point" icon={MapPin} value={profile.landmark} onChangeText={v => setProfile({...profile, landmark: v})} />
+              <DetailField label="Pincode" placeholder="000000" icon={Hash} value={profile.pincode} onChangeText={v => setProfile({...profile, pincode: v})} />
             </View>
           </View>
 
@@ -105,16 +243,17 @@ export const BusinessDetails = () => {
           <View style={styles.section}>
             <TText variant="subtitle" style={styles.sectionTitle}>Bank Account Details</TText>
             <View style={styles.grid}>
-              <DetailField label="Bank Account Name" placeholder="John Doe" icon={User} />
-              <DetailField label="Account Number" placeholder="0000 1234 5678" icon={CreditCard} />
-              <DetailField label="IFSC / SWIFT Code" placeholder="BANK0001234" icon={Hash} />
+              <DetailField label="Bank Account Name" placeholder="John Doe" icon={User} value={profile.bankName} onChangeText={v => setProfile({...profile, bankName: v})} />
+              <DetailField label="Account Number" placeholder="0000 1234 5678" icon={CreditCard} value={profile.accountNo} onChangeText={v => setProfile({...profile, accountNo: v})} />
+              <DetailField label="IFSC / SWIFT Code" placeholder="BANK0001234" icon={Hash} value={profile.ifsc} onChangeText={v => setProfile({...profile, ifsc: v})} />
             </View>
           </View>
 
           <View style={styles.actions}>
             <Button 
               title="Save Changes" 
-              onPress={() => router.back()}
+              onPress={handleSave}
+              loading={loading}
               style={{ width: 220, height: 50 }}
             />
           </View>

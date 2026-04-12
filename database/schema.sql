@@ -22,6 +22,7 @@ CREATE TABLE UserLoginDetails (
     Landmark VARCHAR(150),
     GSTIN VARCHAR(20),
     IsActive BOOLEAN DEFAULT TRUE,
+    IsLoginScreenEnabled BOOLEAN DEFAULT TRUE,
     BankAccountName VARCHAR(150),
     AccountNo VARCHAR(50),
     IFSC VARCHAR(20),
@@ -118,6 +119,20 @@ CREATE TABLE InventoryDetails (
 
 -- Index for fast per-product lookups
 CREATE INDEX idx_inventorydetails_product ON InventoryDetails(ProductID);
+
+-- Table 7: Bill Number Series configuration
+CREATE TABLE BillSeries (
+    SeriesID SERIAL PRIMARY KEY,
+    UserID INTEGER REFERENCES UserLoginDetails(UserID) UNIQUE,
+    Prefix VARCHAR(20) DEFAULT 'INV',
+    Delimiter VARCHAR(5) DEFAULT '/',
+    StartingNumber INTEGER DEFAULT 1,
+    CurrentCount INTEGER DEFAULT 0,
+    CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for fast user lookups
+CREATE INDEX idx_billseries_user ON BillSeries(UserID);
 
 -- Insert Default Roles
 INSERT INTO UserRoles (RoleName) VALUES ('superadmin'), ('admin');

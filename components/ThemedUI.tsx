@@ -15,13 +15,13 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemScheme = useColorScheme();
-  const [theme, setTheme] = useState<ThemeType>(systemScheme || 'light');
+  const [theme, setTheme] = useState<ThemeType>((systemScheme === 'dark' ? 'dark' : 'light'));
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  const colors = COLORS[theme];
+  const colors = COLORS[theme] ?? COLORS.light;
   const isDark = theme === 'dark';
 
   return (

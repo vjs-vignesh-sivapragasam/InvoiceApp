@@ -4,12 +4,12 @@
 -- Password 'password123' (Hashed or plaintext for mock purposes)
 INSERT INTO UserLoginDetails (
     Username, Password, EmailID, RoleID, Mobile, GSTIN, 
-    BankAccountName, AccountNo, IFSC, AddressLine1, Pincode
+    BankAccountName, AccountNo, IFSC, AddressLine1, Pincode, IsLoginScreenEnabled
 ) VALUES 
 ('super_admin', 'admin_pass_789', 'admin@skyline-invoicer.com', 1, '9876543210', '27AAAAA0000A1Z5', 
- 'Skyline Solutions', '50200012345678', 'HDFC0001234', '123 Business Park, Mumbai', '400001'),
+ 'Skyline Solutions', '50200012345678', 'HDFC0001234', '123 Business Park, Mumbai', '400001', TRUE),
 ('john_billing', 'billing_pass_456', 'john@skyline-invoicer.com', 2, '9876543211', '27BBBBB1111B2Z6', 
- 'Skyline Solutions', '50200012345678', 'HDFC0001234', '123 Business Park, Mumbai', '400001');
+ 'Skyline Solutions', '50200012345678', 'HDFC0001234', '123 Business Park, Mumbai', '400001', TRUE);
 
 -- 2. Insert Client Details
 INSERT INTO ClientDetails (
@@ -64,4 +64,9 @@ INSERT INTO InventoryDetails (
 
 -- Return entry
 (2, 'return',    1, 15,  16, 'INV/2026/002', 'One defective monitor returned by Global Tech', 2);
+
+-- 6. Insert Bill Number Series
+INSERT INTO BillSeries (UserID, Prefix, Delimiter, StartingNumber, CurrentCount) VALUES 
+(1, 'INV', '/', 100, 5),
+(2, 'BILL', '-', 1, 12);
 

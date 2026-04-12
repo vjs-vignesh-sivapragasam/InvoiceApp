@@ -1,3 +1,6 @@
+// ⚠️ Must be first — polyfills navigator.userAgent before moti/framer-motion loads
+import '../polyfills';
+
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -23,6 +26,9 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)/login" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="invoice/create" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="manage-clients" options={{ title: 'Client Master' }} />
+            <Stack.Screen name="manage-products" options={{ title: 'Product Master' }} />
+            <Stack.Screen name="manage-inventory" options={{ title: 'Inventory Update' }} />
           </Stack>
         </NotificationProvider>
       </ThemeProvider>

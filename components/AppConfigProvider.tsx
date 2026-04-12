@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { db } from '../services/supabase';
 
 interface AppConfig {
   loginEnabled: boolean;
@@ -12,6 +13,7 @@ interface AppConfig {
 interface AppConfigContextType {
   config: AppConfig;
   updateConfig: (updates: Partial<AppConfig>) => void;
+  refreshConfig: () => Promise<void>;
 }
 
 const AppConfigContext = createContext<AppConfigContextType | undefined>(undefined);
@@ -22,7 +24,7 @@ export const AppConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     billSeriesText: 'INV',
     billSeriesDelimiter: '/',
     billSeriesNumber: new Date().getFullYear().toString(),
-    billSeriesCount: '001',
+    billSeriesCount: '01',
   });
 
   useEffect(() => {
@@ -32,9 +34,41 @@ export const AppConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const loadConfig = async () => {
     try {
       const saved = await AsyncStorage.getItem('app_config');
-      if (saved) setConfig(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          setConfig(prev => ({ ...prev, ...parsed }));
+        }
+      }
     } catch (e) {
-      console.error('Failed to load config');
+      console.warn('App configuration loaded with defaults (Storage restricted)');
+    }
+
+    // 2. Sync Security Gate from Supabase (Source of Truth)
+    try {
+      const dbProfile = await db.users.getProfile(1);
+      if (dbProfile) {
+        setConfig(prev => ({ ...prev, loginEnabled: dbProfile.isloginscreenenabled }));
+        console.log('Login gate status synced from cloud:', dbProfile.isloginscreenenabled);
+      }
+    } catch (dbErr) {
+      console.log('Could not sync login gate from cloud, using local/default');
+    }
+
+    // 3. Sync Bill Series from Supabase
+    try {
+      const billSeries = await db.billSeries.get(1);
+      if (billSeries) {
+        setConfig(prev => ({
+          ...prev,
+          billSeriesText: billSeries.prefix || 'INV',
+          billSeriesDelimiter: billSeries.delimiter || '/',
+          billSeriesNumber: (billSeries.startingnumber || 1).toString(),
+          billSeriesCount: (billSeries.currentcount || 0).toString().padStart(3, '0')
+        }));
+      }
+    } catch (err) {
+      console.log('Could not sync bill series from cloud');
     }
   };
 
@@ -44,12 +78,16 @@ export const AppConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       await AsyncStorage.setItem('app_config', JSON.stringify(newConfig));
     } catch (e) {
-      console.error('Failed to save config');
+      console.warn('Configuration saved to memory only (Storage restricted)');
     }
   };
 
+  const refreshConfig = async () => {
+    await loadConfig();
+  };
+
   return (
-    <AppConfigContext.Provider value={{ config, updateConfig }}>
+    <AppConfigContext.Provider value={{ config, updateConfig, refreshConfig }}>
       {children}
     </AppConfigContext.Provider>
   );

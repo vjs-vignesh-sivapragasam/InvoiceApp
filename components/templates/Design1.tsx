@@ -16,10 +16,9 @@ export const Design1: React.FC<{ data: any }> = ({ data }) => {
 
   return (
     <View style={styles.container}>
-      {/* BRAND WATERMARK FOR QUOTATIONS */}
       {isQuotation && (
         <View style={styles.watermarkContainer} pointerEvents="none">
-           <Text style={styles.watermarkText}>{business.name || 'MK AGENCY'}</Text>
+           <Text style={styles.watermarkText}>{business.name || '-'}</Text>
         </View>
       )}
 
@@ -29,11 +28,11 @@ export const Design1: React.FC<{ data: any }> = ({ data }) => {
         {/* Header Section */}
         <View style={styles.headerRow}>
           <View style={styles.leftCol}>
-            <Text style={styles.businessName}>{business.name || 'MK AGENCY'}</Text>
-            <Text style={styles.headerText}>{business.address || '6, 1st cross, Iyyanar Kovil Street,'}</Text>
-            <Text style={styles.headerText}>{business.address2 || 'Duruga Nagar, Kombakkam, Puducherry'}</Text>
-            <Text style={styles.headerText}>Mobile: {business.mobile || '+91 9791858965'}</Text>
-            <Text style={styles.headerText}>GSTIN: {business.gstin || '34CEBPG0848B1Z5'}</Text>
+            <Text style={styles.businessName}>{business.name || '-'}</Text>
+            <Text style={styles.headerText}>{business.address || '-'}</Text>
+            <Text style={styles.headerText}>{business.address2 || ''}</Text>
+            <Text style={styles.headerText}>Mobile: {business.mobile || '-'}</Text>
+            <Text style={styles.headerText}>GSTIN: {business.gstin || '-'}</Text>
           </View>
 
           <View style={styles.centerCol}>
@@ -52,11 +51,11 @@ export const Design1: React.FC<{ data: any }> = ({ data }) => {
           </View>
 
           <View style={styles.rightCol}>
-            <Text style={styles.toText}>To, {client.name || 'LE CAFE'}</Text>
-            <Text style={styles.headerTextRight}>{client.description || 'A unit of PTDC, Govt of Puducherry'}</Text>
-            <Text style={styles.headerTextRight}>{client.address || 'Beach Road, Puducherry 605001'}</Text>
-            <Text style={styles.headerTextRight}>Mobile: {client.mobile || '04132917949'}</Text>
-            <Text style={styles.headerTextRight}>GSTIN: {client.gstin || '34AADCP5609G1ZK'}</Text>
+            <Text style={styles.toText}>To, {client.clientname || '-'}</Text>
+            <Text style={styles.headerTextRight}>{client.addressline1 || '-'}</Text>
+            <Text style={styles.headerTextRight}>{client.addressline2 || ''}</Text>
+            <Text style={styles.headerTextRight}>Mobile: {client.mobile || '-'}</Text>
+            <Text style={styles.headerTextRight}>GSTIN: {client.gstin || '-'}</Text>
           </View>
         </View>
 
@@ -122,22 +121,22 @@ export const Design1: React.FC<{ data: any }> = ({ data }) => {
             </View>
             <View style={styles.bankDetailRow}>
               <Text style={styles.bankLabel}>Bank Account Name:</Text>
-              <Text style={styles.bankValue}>{business.bankName || 'INDIAN OVERSEAS BANK'}</Text>
+              <Text style={styles.bankValue}>{business.bankName || '-'}</Text>
             </View>
             <View style={styles.bankDetailRow}>
               <Text style={styles.bankLabel}>Bank Account Number:</Text>
-              <Text style={styles.bankValue}>{business.accountNo || '360502000000219'}</Text>
+              <Text style={styles.bankValue}>{business.accountNo || '-'}</Text>
             </View>
             <View style={styles.bankDetailRow}>
               <Text style={styles.bankLabel}>IFSC Code:</Text>
-              <Text style={styles.bankValue}>{business.ifsc || 'IOBA0003605'}</Text>
+              <Text style={styles.bankValue}>{business.ifsc || '-'}</Text>
             </View>
           </View>
 
           <View style={styles.signatureCol}>
             <Text style={styles.certifyText}>Certified that the particulars given above are true and correct.</Text>
             <View style={styles.agencyNameBox}>
-              <Text style={styles.agencyNameText}>FOR {business.name || 'MK AGENCY'}</Text>
+              <Text style={styles.agencyNameText}>FOR {business.name || '-'}</Text>
             </View>
             <View style={{ height: 60 }} />
             <Text style={styles.signatoryText}>Authorised Signatory</Text>

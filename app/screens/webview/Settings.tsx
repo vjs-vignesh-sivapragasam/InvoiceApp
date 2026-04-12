@@ -6,6 +6,8 @@ import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
 import { User, Building, Shield, Moon, ChevronRight, Key, Hash, Layout } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAppConfig } from '../../../components/AppConfigProvider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { db } from '../../../services/supabase';
 
 interface SettingCardProps {
   title: string;
@@ -74,6 +76,15 @@ export const Settings = () => {
   const { config, updateConfig } = useAppConfig();
   const router = useRouter();
 
+  const handleToggleLogin = async (value: boolean) => {
+    updateConfig({ loginEnabled: value });
+    try {
+      await db.users.updateLoginScreenStatus(1, value);
+    } catch (e) {
+      console.error('Failed to update login status in DB', e);
+    }
+  };
+
   return (
     <WebLayout>
       <TView style={styles.header}>
@@ -93,41 +104,8 @@ export const Settings = () => {
             <SettingItem 
               icon={Hash} 
               title="Bill No Series" 
-              description="Configure parts: text, delimiter, year/ref, and count" 
-              renderRight={() => (
-                <TView style={{ flexDirection: 'row', gap: 8 }}>
-                   <TextInput 
-                    style={[styles.miniInput, { width: 60, color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}
-                    placeholder="INV"
-                    value={config.billSeriesText}
-                    onChangeText={(v) => updateConfig({ billSeriesText: v })}
-                  />
-                  <TextInput 
-                    style={[styles.miniInput, { width: 30, textAlign: 'center', color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}
-                    placeholder="/"
-                    value={config.billSeriesDelimiter}
-                    onChangeText={(v) => updateConfig({ billSeriesDelimiter: v })}
-                  />
-                  <TextInput 
-                    style={[styles.miniInput, { width: 60, color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}
-                    placeholder="2024"
-                    value={config.billSeriesNumber}
-                    onChangeText={(v) => updateConfig({ billSeriesNumber: v })}
-                  />
-                  <TextInput 
-                    style={[styles.miniInput, { width: 30, textAlign: 'center', color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}
-                    placeholder="/"
-                    value={config.billSeriesDelimiter}
-                    editable={false}
-                  />
-                  <TextInput 
-                    style={[styles.miniInput, { width: 50, color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSecondary, opacity: 0.6 }]}
-                    placeholder="001"
-                    value={config.billSeriesCount}
-                    editable={false}
-                  />
-                </TView>
-              )}
+              description="Configure parts: text, delimiter, and start number" 
+              onPress={() => router.push('/settings/bill-series')}
             />
           </SettingCard>
 
@@ -151,7 +129,7 @@ export const Settings = () => {
               description="Require authentication on startup" 
               showSwitch 
               value={config.loginEnabled} 
-              onToggle={(v) => updateConfig({ loginEnabled: v })}
+              onToggle={handleToggleLogin}
             />
             <SettingItem 
               icon={Shield} 

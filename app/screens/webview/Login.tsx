@@ -7,20 +7,33 @@ import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { Button } from '../../../components/Button';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
 import { Mail, Lock, LogIn, CheckCircle2 } from 'lucide-react-native';
+import { db } from '../../../services/supabase';
 
 const { width } = Dimensions.get('window');
 
 export const Login = () => {
   const { colors } = useTheme();
   const router = useRouter();
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    if (!identifier || !password) return;
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const user = await db.users.login(identifier, password);
+      if (user) {
+        router.replace('/(tabs)/dashboard');
+      } else {
+        alert('Access Denied: Invalid credentials');
+      }
+    } catch (e) {
+      console.error('Login error:', e);
+      alert('System Error: Authentication failed');
+    } finally {
       setLoading(false);
-      router.replace('/(tabs)/dashboard');
-    }, 1500);
+    }
   };
 
   return (
@@ -64,13 +77,15 @@ export const Login = () => {
           <TText variant="caption" style={{ marginBottom: 40 }}>Enter your credentials to access your dashboard</TText>
 
         <View style={styles.inputGroup}>
-            <TText variant="caption" style={styles.label}>Email Address</TText>
+            <TText variant="caption" style={styles.label}>Username or Email</TText>
             <TView style={[styles.inputWrapper, { backgroundColor: colors.surfaceSecondary }]}>
               <Mail size={20} color={colors.textSecondary} />
               <TextInput 
-                placeholder="name@company.com" 
+                placeholder="admin or name@company.com" 
                 style={[styles.input, { color: colors.text }]} 
                 placeholderTextColor={colors.textSecondary}
+                value={identifier}
+                onChangeText={setIdentifier}
               />
             </TView>
           </View>
@@ -84,6 +99,8 @@ export const Login = () => {
                 secureTextEntry 
                 style={[styles.input, { color: colors.text }]} 
                 placeholderTextColor={colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
               />
             </TView>
           </View>
