@@ -150,13 +150,21 @@ export default function HistoryScreen() {
             <table class="table">
               <thead>
                 <tr>
-                  <th>Description</th>
+                  <th>Particulars</th>
+                  <th style="text-align: center;">HSN</th>
+                  <th style="text-align: center;">Box</th>
+                  <th style="text-align: center;">Pieces</th>
+                  <th style="text-align: right;">Rate</th>
                   <th style="text-align: right;">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Goods/Services as per Bill # ${item.billno}</td>
+                  <td>${item.products?.productname || 'Goods/Services'}</td>
+                  <td style="text-align: center;">${item.products?.hsn || '0000'}</td>
+                  <td style="text-align: center;">${item.box || '0'}</td>
+                  <td style="text-align: center;">${item.pieces || '0'}</td>
+                  <td style="text-align: right;">₹${(item.rate || 0).toLocaleString()}</td>
                   <td style="text-align: right; font-weight: 700;">₹${item.totalamount?.toLocaleString()}</td>
                 </tr>
               </tbody>
@@ -172,12 +180,34 @@ export default function HistoryScreen() {
 
               <div class="totals">
                 <div class="total-row">
-                  <span style="color: #64748B; font-weight: 700;">Subtotal</span>
-                  <span style="font-weight: 700;">₹${item.taxableamount?.toLocaleString() || item.totalamount?.toLocaleString()}</span>
+                  <span>Subtotal</span>
+                  <span>₹${(item.taxableamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
+                ${item.discamount > 0 ? `
+                  <div class="total-row">
+                    <span>Discount (${item.disperc}%)</span>
+                    <span style="color: #EF4444;">- ₹${item.discamount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                ` : ''}
+                ${item.iswithgst ? `
+                  <div class="total-row">
+                    <span>CGST</span>
+                    <span>₹${(item.cgstamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div class="total-row">
+                    <span>SGST</span>
+                    <span>₹${(item.sgstamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                ` : ''}
+                ${item.optional2 ? `
+                  <div class="total-row">
+                    <span>Adjustment</span>
+                    <span>₹${parseFloat(item.optional2).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                ` : ''}
                 <div class="total-row grand">
                   <p>Grand Total</p>
-                  <p>₹${item.totalamount?.toLocaleString()}</p>
+                  <p>₹${(item.totalamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
             </div>
@@ -337,22 +367,23 @@ export default function HistoryScreen() {
                           billDate: selectedBill.billdate,
                           items: [
                             { 
-                              name: `Goods/Services as per Bill # ${selectedBill.billno}`, 
-                              hsn: '0000', 
-                              box: '1', 
-                              pieces: '1', 
-                              price: selectedBill.taxableamount || selectedBill.totalamount, 
-                              cgst: '0', 
-                              sgst: '0', 
-                              rate: selectedBill.totalamount, 
-                              amount: selectedBill.totalamount 
+                              name: selectedBill.products?.productname || `Goods/Services as per Bill # ${selectedBill.billno}`, 
+                              hsn: selectedBill.products?.hsn || '0000', 
+                              box: selectedBill.box?.toString() || '0', 
+                              pieces: selectedBill.pieces?.toString() || '0', 
+                              price: (selectedBill.rate || 0).toString(), 
+                              disc: selectedBill.disperc ? `${selectedBill.disperc}% - ${selectedBill.discamount?.toFixed(2)}` : '0% - 0.00',
+                              cgst: (selectedBill.cgstamount || 0).toFixed(2), 
+                              sgst: (selectedBill.sgstamount || 0).toFixed(2), 
+                              rate: (selectedBill.rate || 0).toString(), 
+                              amount: selectedBill.totalamount?.toFixed(2)
                             }
                           ],
                           summary: {
                             totalQty: '1',
-                            beforeTax: (selectedBill.taxableamount || selectedBill.totalamount).toString(),
-                            totalAmount: selectedBill.totalamount.toString(),
-                            afterTax: selectedBill.totalamount.toString()
+                            beforeTax: (selectedBill.taxableamount || (selectedBill.totalamount - (selectedBill.gstamount || 0))).toFixed(2),
+                            totalAmount: selectedBill.totalamount?.toFixed(2),
+                            afterTax: selectedBill.totalamount?.toFixed(2)
                           },
                           docType: 'invoice'
                         }} 

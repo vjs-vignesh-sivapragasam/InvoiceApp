@@ -13,11 +13,5 @@ TRUNCATE TABLE
     UserRoles 
 RESTART IDENTITY CASCADE;
 
--- Re-insert essential system data
--- Most applications require these roles to exist to function correctly
-INSERT INTO UserRoles (RoleName) VALUES 
-    ('superadmin'), 
-    ('admin');
-
 -- Verification: You should see 0 rows in main tables and 2 rows in UserRoles
 SELECT 'Truncation Complete' as status;

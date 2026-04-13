@@ -18,7 +18,7 @@ export const Design1: React.FC<{ data: any }> = ({ data }) => {
     <View style={styles.container}>
       {isQuotation && (
         <View style={styles.watermarkContainer} pointerEvents="none">
-           <Text style={styles.watermarkText}>{business.name || '-'}</Text>
+           <Text style={styles.watermarkText}>QUOTATION</Text>
         </View>
       )}
 
@@ -28,11 +28,13 @@ export const Design1: React.FC<{ data: any }> = ({ data }) => {
         {/* Header Section */}
         <View style={styles.headerRow}>
           <View style={styles.leftCol}>
-            <Text style={styles.businessName}>{business.name || '-'}</Text>
-            <Text style={styles.headerText}>{business.address || '-'}</Text>
-            <Text style={styles.headerText}>{business.address2 || ''}</Text>
-            <Text style={styles.headerText}>Mobile: {business.mobile || '-'}</Text>
-            <Text style={styles.headerText}>GSTIN: {business.gstin || '-'}</Text>
+            <Text style={styles.businessName}>{business.name || 'MK Agency'}</Text>
+            {business.address ? <Text style={styles.headerText}>{business.address}</Text> : null}
+            {business.address2 ? <Text style={styles.headerText}>{business.address2}</Text> : null}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+              <Text style={styles.headerText}>Mobile: {business.mobile || '-'}</Text>
+              <Text style={styles.headerText}>GSTIN: {business.gstin || '-'}</Text>
+            </View>
           </View>
 
           <View style={styles.centerCol}>
@@ -69,10 +71,10 @@ export const Design1: React.FC<{ data: any }> = ({ data }) => {
             <Text style={[styles.cellHeader, { flex: 0.8 }]}>Pieces</Text>
             <Text style={[styles.cellHeader, { flex: 1 }]}>S.Price</Text>
             <Text style={[styles.cellHeader, { flex: 1.2 }]}>Disc</Text>
-            <Text style={[styles.cellHeader, { flex: 1 }]}>CGST 9%</Text>
-            <Text style={[styles.cellHeader, { flex: 1 }]}>SGST 9%</Text>
-            <Text style={[styles.cellHeader, { flex: 1 }]}>Rate</Text>
-            <Text style={[styles.cellHeader, { flex: 1.2, borderRightWidth: 0 }]}>Amount</Text>
+            <Text style={[styles.cellHeader, { flex: 1 }]}>CGST</Text>
+            <Text style={[styles.cellHeader, { flex: 1 }]}>SGST</Text>
+            <Text style={[styles.cellHeader, { flex: 1 }]}>Net Rate</Text>
+            <Text style={[styles.cellHeader, { flex: 1.2, borderRightWidth: 0 }]}>Line Total</Text>
           </View>
 
           {items.map((item, index) => (

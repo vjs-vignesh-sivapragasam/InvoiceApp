@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, TextInput, View, SafeAreaView } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, TextInput, View, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { TView, TText, useTheme } from '../../components/ThemedUI';
@@ -62,61 +62,66 @@ export default function ChangePassword() {
         <TView style={{ width: 40 }} />
       </TView>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <MotiView 
-          from={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          style={styles.card}
-        >
-          <TView style={[styles.iconBox, { backgroundColor: COLORS.primary + '10' }]}>
-            <ShieldCheck size={32} color={COLORS.primary} />
-          </TView>
-          <TText style={styles.cardTitle}>Security Update</TText>
-          <TText style={styles.cardDesc}>Update your login credentials to secure your management suite.</TText>
-        </MotiView>
-
-        <TView style={styles.form}>
-           <TView style={styles.inputGroup}>
-            <TText variant="caption" style={styles.label}>NEW PASSWORD</TText>
-            <TView style={[styles.inputContainer, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f9f9f9' }]}>
-              <Lock size={18} color={COLORS.primary} />
-              <TextInput 
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Minimum 4 characters"
-                placeholderTextColor="#999"
-                secureTextEntry={!showPass}
-                value={form.newPassword}
-                onChangeText={(v) => setForm({...form, newPassword: v})}
-              />
-              <TouchableOpacity onPress={() => setShowPass(!showPass)}>
-                {showPass ? <EyeOff size={18} color="#999" /> : <Eye size={18} color="#999" />}
-              </TouchableOpacity>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          <MotiView 
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={styles.card}
+          >
+            <TView style={[styles.iconBox, { backgroundColor: COLORS.primary + '10' }]}>
+              <ShieldCheck size={32} color={COLORS.primary} />
             </TView>
-          </TView>
+            <TText style={styles.cardTitle}>Security Update</TText>
+            <TText style={styles.cardDesc}>Update your login credentials to secure your management suite.</TText>
+          </MotiView>
 
-          <TView style={styles.inputGroup}>
-            <TText variant="caption" style={styles.label}>CONFIRM NEW PASSWORD</TText>
-            <TView style={[styles.inputContainer, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f9f9f9' }]}>
-              <Lock size={18} color={COLORS.primary} />
-              <TextInput 
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Repeat new password"
-                placeholderTextColor="#999"
-                secureTextEntry={!showPass}
-                value={form.confirmPassword}
-                onChangeText={(v) => setForm({...form, confirmPassword: v})}
-              />
+          <TView style={styles.form}>
+             <TView style={styles.inputGroup}>
+              <TText variant="caption" style={styles.label}>NEW PASSWORD</TText>
+              <TView style={[styles.inputContainer, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f9f9f9' }]}>
+                <Lock size={18} color={COLORS.primary} />
+                <TextInput 
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Minimum 4 characters"
+                  placeholderTextColor="#999"
+                  secureTextEntry={!showPass}
+                  value={form.newPassword}
+                  onChangeText={(v) => setForm({...form, newPassword: v})}
+                />
+                <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                  {showPass ? <EyeOff size={18} color="#999" /> : <Eye size={18} color="#999" />}
+                </TouchableOpacity>
+              </TView>
             </TView>
-          </TView>
 
-          <Button 
-            title="Update Security Key" 
-            onPress={handleUpdate}
-            loading={loading}
-            style={{ marginTop: 20 }}
-          />
-        </TView>
-      </ScrollView>
+            <TView style={styles.inputGroup}>
+              <TText variant="caption" style={styles.label}>CONFIRM NEW PASSWORD</TText>
+              <TView style={[styles.inputContainer, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#f9f9f9' }]}>
+                <Lock size={18} color={COLORS.primary} />
+                <TextInput 
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Repeat new password"
+                  placeholderTextColor="#999"
+                  secureTextEntry={!showPass}
+                  value={form.confirmPassword}
+                  onChangeText={(v) => setForm({...form, confirmPassword: v})}
+                />
+              </TView>
+            </TView>
+
+            <Button 
+              title="Update Security Key" 
+              onPress={handleUpdate}
+              loading={loading}
+              style={{ marginTop: 20 }}
+            />
+          </TView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

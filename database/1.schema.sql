@@ -98,9 +98,13 @@ CREATE TABLE BillingTransaction (
     TotalAmount DECIMAL(15, 2),
     IsInvoiceGenerated BOOLEAN DEFAULT FALSE,
     IsWithGST BOOLEAN DEFAULT TRUE,
+    PaymentMethod TEXT,
     BillTime TIME DEFAULT CURRENT_TIME,
     IsActive BOOLEAN DEFAULT TRUE,
-    CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Optional1 TEXT,
+    Optional2 TEXT,
+    Optional3 TEXT
 );
 
 -- Table 6: Inventory Details (Stock Movement Log)
@@ -133,7 +137,3 @@ CREATE TABLE BillSeries (
 
 -- Index for fast user lookups
 CREATE INDEX idx_billseries_user ON BillSeries(UserID);
-
--- Insert Default Roles
-INSERT INTO UserRoles (RoleName) VALUES ('superadmin'), ('admin');
-

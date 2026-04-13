@@ -37,7 +37,7 @@ export const useTheme = () => {
   return context;
 };
 
-export const TView: React.FC<ViewProps & { variant?: 'surface' | 'card' | 'secondary' }> = ({ 
+export const TView: React.FC<ViewProps & { variant?: 'background' | 'surface' | 'card' | 'secondary' }> = ({ 
   style, 
   variant, 
   ...props 
@@ -46,6 +46,7 @@ export const TView: React.FC<ViewProps & { variant?: 'surface' | 'card' | 'secon
   
   const getVariantStyle = () => {
     switch (variant) {
+      case 'background': return { backgroundColor: colors.background };
       case 'surface': return { backgroundColor: colors.surface };
       case 'card': return { 
         backgroundColor: colors.card,
@@ -54,7 +55,7 @@ export const TView: React.FC<ViewProps & { variant?: 'surface' | 'card' | 'secon
         ...SHADOWS.sm,
       };
       case 'secondary': return { backgroundColor: colors.surfaceSecondary };
-      default: return { backgroundColor: colors.background };
+      default: return {};
     }
   };
 

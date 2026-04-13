@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, View, Modal, FlatList, SafeAreaView, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { SimpleDatePicker } from '../../../components/SimpleDatePicker';
 import { MotiView, AnimatePresence } from 'moti';
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { Button } from '../../../components/Button';
@@ -12,8 +13,8 @@ import { useAppConfig } from '../../../components/AppConfigProvider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
   Plus, Trash2, Calendar, User as UserIcon, 
-  FileText, ChevronRight, Calculator,
-  Search, X, Hash, ShoppingBag, CreditCard, Eye, Percent, ChevronDown
+  ChevronRight, Calculator,
+  Search, X, Hash, ShoppingBag, Eye, Percent, ChevronDown, ShieldCheck, ArrowRight
 } from 'lucide-react-native';
 import { Design1 } from '../../../components/templates/Design1';
 
@@ -38,12 +39,12 @@ const MobileBilling = () => {
   const [adjustment, setAdjustment] = useState('0');
   const [discount, setDiscount] = useState('0');
   const [billGST, setBillGST] = useState('12'); 
+  const [gstEnabled, setGstEnabled] = useState(true);
   const [billNo, setBillNo] = useState('');
   const [billDate, setBillDate] = useState(new Date().toISOString().split('T')[0]);
-  const [withGST, setWithGST] = useState(true);
   const [docType, setDocType] = useState<'invoice' | 'quotation'>('invoice');
-  const [isExpanded, setIsExpanded] = useState(false);
-  
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
+  const [isItemsExpanded, setIsItemsExpanded] = useState(true);
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
@@ -51,22 +52,38 @@ const MobileBilling = () => {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [businessProfile, setBusinessProfile] = useState<any>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT' | 'GPAY'>('CASH');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setBillDate(selectedDate.toISOString().split('T')[0]);
+    }
+  };
 
   const gstOptions = ['2', '8', '9', '12', '18'];
 
   useEffect(() => {
     fetchInitialData();
-    const generatedNo = `${config.billSeriesText}${config.billSeriesDelimiter}${config.billSeriesNumber}${config.billSeriesDelimiter}${config.billSeriesCount}`;
-    setBillNo(generatedNo);
   }, []);
 
   const fetchInitialData = async () => {
     try {
-      const [c, p] = await Promise.all([db.clients.getAll(), db.products.getAll()]);
-      setClients(c); setProducts(p);
+      const [c, p, nextBill] = await Promise.all([
+        db.clients.getAll(), 
+        db.products.getAll(),
+        db.billSeries.getNextBillNo(1)
+      ]);
+      setClients(c); 
+      setProducts(p);
+      setBillNo(nextBill);
       const savedProfile = await AsyncStorage.getItem('business_profile');
       if (savedProfile) setBusinessProfile(JSON.parse(savedProfile));
-    } catch { showToast('Database connection error', 'error'); } 
+    } catch (e) { 
+      console.error('Fetch error:', e);
+      showToast('Connection issue', 'error'); 
+    } 
     finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -75,13 +92,8 @@ const MobileBilling = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const addItem = () => {
-    setItems([...items, { id: Math.random().toString(), productid: null, name: '', qty: '1', incase: '1', pieces: '1', price: '0', hsn: '' }]);
-  };
-
-  const removeItem = (id: string) => {
-    if (items.length > 1) setItems(items.filter(item => item.id !== id));
-  };
+  const addItem = () => { setItems([...items, { id: Math.random().toString(), productid: null, name: '', qty: '1', incase: '1', pieces: '1', price: '0', hsn: '' }]); setIsItemsExpanded(true); };
+  const removeItem = (id: string) => items.length > 1 && setItems(items.filter(item => item.id !== id));
 
   const updateItem = (id: string, field: string, value: any) => {
     setItems(items.map(it => {
@@ -97,162 +109,369 @@ const MobileBilling = () => {
   };
 
   const calculateSubtotal = () => items.reduce((acc, item) => acc + (parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0), 0);
-  const calculateTotal = () => {
-    const sub = calculateSubtotal();
-    const total = sub * (1 + parseFloat(billGST)/100);
-    const disc = total * (parseFloat(discount)/100 || 0);
-    return total - disc + (parseFloat(adjustment) || 0);
+  const getCalculations = () => {
+    const subtotal = calculateSubtotal();
+    const discPerc = parseFloat(discount) || 0;
+    const discAmount = subtotal * (discPerc / 100);
+    const taxableAmount = subtotal - discAmount;
+    
+    const gstRate = gstEnabled ? parseFloat(billGST) : 0;
+    const gstAmount = taxableAmount * (gstRate / 100);
+    const cgstAmount = gstAmount / 2;
+    const sgstAmount = gstAmount / 2;
+    
+    const adjustmentVal = parseFloat(adjustment) || 0;
+    const totalAmount = taxableAmount + gstAmount + adjustmentVal;
+
+    return {
+      subtotal,
+      discPerc,
+      discAmount,
+      taxableAmount,
+      gstRate,
+      gstAmount,
+      cgstAmount,
+      sgstAmount,
+      adjustmentVal,
+      totalAmount
+    };
   };
 
+  const calculateTotal = () => getCalculations().totalAmount;
+
   const handleSave = async () => {
-    if (!selectedClient) return showToast('Select a client first', 'error');
+    if (!selectedClient) return showToast('Please select a client', 'error');
     setLoading(true);
     try {
-      await db.billing.create({
-          clientid: selectedClient.clientid, billno: billNo, totalamount: calculateTotal(),
-          taxableamount: calculateSubtotal(), isactive: true, billdate: billDate,
-          optional1: discount, optional2: billGST 
+      const calcs = getCalculations();
+      await db.billing.create({ 
+        clientid: selectedClient.clientid, 
+        billno: billNo, 
+        totalamount: calcs.totalAmount, 
+        taxableamount: calcs.taxableAmount, 
+        gstamount: calcs.gstAmount,
+        cgstamount: calcs.cgstAmount,
+        sgstamount: calcs.sgstAmount,
+        disperc: calcs.discPerc,
+        discamount: calcs.discAmount,
+        isactive: true, 
+        billdate: billDate, 
+        optional1: discount, 
+        paymentmethod: paymentMethod,
+        iswithgst: gstEnabled,
+        productid: items[0].productid,
+        box: parseInt(items[0].incase) || 0,
+        pieces: parseInt(items[0].pieces) || 0,
+        rate: parseFloat(items[0].price) || 0,
+        optional2: adjustment // Storing adjustment in optional2 for now
       });
-      showToast('Transaction saved!');
+
+      // Increment the bill series count globally
+      await db.billSeries.incrementCount(1);
+
+      showToast(`${docType.toUpperCase()} Saved!`);
       router.back();
-    } catch (e) { showToast('Failed to save', 'error'); } 
+    } catch (e) { 
+      console.error('Save error:', e);
+      showToast('Save failed', 'error'); 
+    } 
     finally { setLoading(false); }
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, { backgroundColor: colors.background }]}>
       <TView style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><ChevronRight size={24} color={colors.text} style={{ transform: [{ rotate: '180deg'}] }} /></TouchableOpacity>
-        <TText variant="subtitle" style={{ fontWeight: '800' }}>Terminal</TText>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><ChevronRight size={22} color={colors.text} style={{ transform: [{ rotate: '180deg'}] }} /></TouchableOpacity>
+        <TText variant="subtitle" style={{ fontWeight: '900', letterSpacing: -0.2 }}>Billing</TText>
         <TView style={{ width: 44 }} />
       </TView>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
-      >
-        <TView style={[styles.typeSwitcher, { backgroundColor: 'rgba(129, 140, 248, 0.1)', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.2)' }]}>
-           <TouchableOpacity onPress={() => { setDocType('invoice'); setWithGST(true); }} style={[styles.typeBtn, docType === 'invoice' && { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.2)' : '#fff', ...SHADOWS.sm }]}><TText style={[styles.typeLabel, docType === 'invoice' && { color: COLORS.primary }]}>TAX INVOICE</TText></TouchableOpacity>
-           <TouchableOpacity onPress={() => { setDocType('quotation'); setWithGST(false); }} style={[styles.typeBtn, docType === 'quotation' && { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.2)' : '#fff', ...SHADOWS.sm }]}><TText style={[styles.typeLabel, docType === 'quotation' && { color: COLORS.primary }]}>QUOTATION</TText></TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
+        {/* DOC TYPE SELECTOR */}
+        <TView style={[styles.typeSwitcher, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+           <TouchableOpacity onPress={() => setDocType('invoice')} style={[styles.typeBtn, docType === 'invoice' && styles.activeTypeBtn]}>
+              <TText style={[styles.typeLabel, docType === 'invoice' && { color: COLORS.primary, fontWeight: '900' }]}>INVOICE</TText>
+           </TouchableOpacity>
+           <TouchableOpacity onPress={() => setDocType('quotation')} style={[styles.typeBtn, docType === 'quotation' && styles.activeTypeBtn]}>
+              <TText style={[styles.typeLabel, docType === 'quotation' && { color: COLORS.primary, fontWeight: '900' }]}>QUOTATION</TText>
+           </TouchableOpacity>
         </TView>
 
-        <TView style={[styles.headerSection, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.05)' : colors.card, borderColor: colors.border }]}>
-          <View style={styles.compactClientPicker}>
-            <TView style={styles.pickerIconSmall}><UserIcon size={16} color={selectedClient ? COLORS.primary : colors.textSecondary} /></TView>
-            <TView style={{ flex: 1, marginLeft: 10 }}>
-              <TText numberOfLines={1} style={{ fontWeight: '800', fontSize: 14, color: selectedClient ? colors.text : colors.textSecondary }}>{selectedClient ? selectedClient.clientname : 'Locked Client'}</TText>
-            </TView>
-          </View>
+        {/* CLIENT DETAILS SECTION - MATCHED TO PARTICULARS DESIGN */}
+        <TView style={styles.headerLayout}>
+           <TouchableOpacity onPress={() => setIsHeaderExpanded(!isHeaderExpanded)} activeOpacity={0.7} style={styles.gridTitleBar}>
+              <TView style={styles.gridTitleLeft}>
+                 <UserIcon size={18} color={COLORS.primary} />
+                 <TText style={styles.gridTitleText}>CLIENT DETAILS</TText>
+              </TView>
+              <TView style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                  {!isHeaderExpanded && selectedClient && (
+                    <TText style={{ fontSize: 10, fontWeight: '700', color: COLORS.primary, opacity: 0.8 }}>
+                       {selectedClient.clientname.split(' ')[0]}... • {billNo.split('-').pop()}
+                    </TText>
+                  )}
+                  <ChevronDown size={20} color={colors.textSecondary} style={{ transform: [{ rotate: isHeaderExpanded ? '180deg' : '0deg' }] }} />
+              </TView>
+           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={styles.expandHeader}>
-             <TView style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Hash size={14} color={COLORS.primary} />
-                <TText style={{ fontWeight: '800', fontSize: 12 }}>{billNo}</TText>
-             </TView>
-             <ChevronDown size={16} color={colors.textSecondary} style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }} />
-          </TouchableOpacity>
-
-          <AnimatePresence>
-            {isExpanded && (
+           <AnimatePresence>
+            {isHeaderExpanded && (
               <MotiView from={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ type: 'timing', duration: 250 }} style={{ overflow: 'hidden' }}>
-                 <TView style={styles.expandedMetaRow}>
-                    <TView style={styles.miniMetaDisabled}><Calendar size={12} color={COLORS.primary} /><TText style={[styles.miniValueText, { color: colors.textSecondary }]}>{billDate}</TText></TView>
-                    <TView style={styles.miniMetaDisabled}><Percent size={12} color={COLORS.primary} /><TText style={[styles.miniValueText, { color: colors.textSecondary }]}>{billGST}% GST Enabled</TText></TView>
+                 <TView style={[styles.standardCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : colors.card, borderColor: colors.border }]}>
+                    <TouchableOpacity onPress={() => { setSearchQuery(''); setClientModalVisible(true); }} style={[styles.compactPicker, { borderColor: colors.border }]}>
+                       <TText style={{ fontWeight: '700', fontSize: 13, color: selectedClient ? colors.text : colors.textSecondary }}>{selectedClient ? selectedClient.clientname : 'Tap to select client...'}</TText>
+                       <Search size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TView style={styles.compactMetaGrid}>
+                       <TView style={[styles.compactMetaBox, { opacity: 0.6 }]}><Hash size={14} color={COLORS.primary} /><TText style={styles.compactMetaVal}>{billNo}</TText></TView>
+                       <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.compactMetaBox}>
+                         <Calendar size={14} color={COLORS.primary} />
+                         <TText style={styles.compactMetaVal}>{billDate}</TText>
+                       </TouchableOpacity>
+                    </TView>
+                    <SimpleDatePicker
+                      visible={showDatePicker}
+                      value={billDate}
+                      onClose={() => setShowDatePicker(false)}
+                      onChange={(date) => {
+                        setBillDate(date);
+                        setShowDatePicker(false);
+                      }}
+                    />
+                    <TView style={styles.taxSection}>
+                       <TView style={styles.taxSectionHead}>
+                          <TView style={{ flexDirection: 'row', alignItems: 'center' }}><ShieldCheck size={16} color={COLORS.primary} /><TText style={{ marginLeft: 8, fontWeight: '800', fontSize: 12 }}>Tax Calculation</TText></TView>
+                          <TouchableOpacity onPress={() => setGstEnabled(!gstEnabled)} style={[styles.swtBase, { backgroundColor: gstEnabled ? COLORS.primary : 'rgba(0,0,0,0.1)' }]}><MotiView animate={{ translateX: gstEnabled ? 18 : 0 }} transition={{ type: 'timing', duration: 150 }} style={styles.swtKnob} /></TouchableOpacity>
+                       </TView>
+                       {gstEnabled ? (
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>{gstOptions.map(opt => (<TouchableOpacity key={opt} onPress={() => setBillGST(opt)} style={[styles.gstOptionChip, billGST === opt && { backgroundColor: COLORS.primary }]}><TText style={[styles.gstOptionText, billGST === opt && { color: '#fff' }]}>{opt}% GST</TText></TouchableOpacity>))}</ScrollView>
+                       ) : <View style={styles.taxOff}><TText style={styles.taxOffText}>Non-GST Transaction</TText></View>}
+                    </TView>
                  </TView>
               </MotiView>
-             )}
+            )}
           </AnimatePresence>
-
-          <TView style={styles.miniMetaFull}><Percent size={12} color={COLORS.primary} /><TText style={{ marginLeft: 6, fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>Bill GST: </TText><ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>{gstOptions.map(opt => (<TouchableOpacity key={opt} onPress={() => setBillGST(opt)} style={[styles.gstChip, billGST === opt && { backgroundColor: COLORS.primary }]}><TText style={[styles.gstChipText, billGST === opt && { color: '#fff' }]}>{opt}%</TText></TouchableOpacity>))}</ScrollView></TView>
         </TView>
 
-        <TView style={styles.sectionTitleRow}><TText style={styles.sectionTitle}>PARTICULARS ({items.length})</TText><TouchableOpacity onPress={addItem} style={styles.addMiniBtn}><Plus size={14} color="#fff" /></TouchableOpacity></TView>
+        {/* PARTICULARS GRID */}
+        <TView style={styles.particularsSection}>
+           <TouchableOpacity onPress={() => setIsItemsExpanded(!isItemsExpanded)} style={styles.gridTitleBar}>
+              <TView style={styles.gridTitleLeft}>
+                 <ShoppingBag size={18} color={COLORS.primary} />
+                 <TText style={styles.gridTitleText}>PARTICULARS ({items.length})</TText>
+              </TView>
+              <TView style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                 <TouchableOpacity onPress={addItem} style={styles.addCta}><Plus size={16} color="#fff" /></TouchableOpacity>
+                 <ChevronDown size={20} color={colors.textSecondary} style={{ transform: [{ rotate: isItemsExpanded ? '180deg' : '0deg' }] }} />
+              </TView>
+           </TouchableOpacity>
 
-        {items.map((item, index) => (
-          <MotiView key={item.id} from={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.itemCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : '#fff', borderWidth: 1.2, borderColor: colors.border }]}>
-             <TView style={styles.itemHeader}>
-                <TView style={[styles.itemNum, { backgroundColor: COLORS.primary + '15' }]}><TText style={[styles.itemNumText, { color: COLORS.primary }]}>{index + 1}</TText></TView>
-                <TouchableOpacity onPress={() => { setSearchQuery(''); setActiveItemIndex(index); setProductModalVisible(true); }} style={styles.productLink}><TText numberOfLines={1} style={[styles.productNameText, !item.name && { color: colors.textSecondary }]}>{item.name || 'Select Product...'}</TText></TouchableOpacity>
-                <TouchableOpacity onPress={() => removeItem(item.id)} style={{ padding: 5 }}><Trash2 size={16} color={COLORS.danger} /></TouchableOpacity>
-             </TView>
+           <AnimatePresence>
+              {isItemsExpanded && (
+                <MotiView from={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ type: 'timing', duration: 250 }} style={{ overflow: 'hidden' }}>
+                   <View style={{ paddingTop: 10 }}>
+                      {items.map((item, index) => (
+                         <TView key={item.id} style={[styles.lineCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : '#fff', borderColor: colors.border }]}>
+                            <TView style={styles.lineHeader}>
+                               <View style={[styles.lineIdx, { backgroundColor: COLORS.primary + '15' }]}><TText style={{ fontSize: 11, fontWeight: '900', color: COLORS.primary }}>{index+1}</TText></View>
+                               <TouchableOpacity onPress={() => { setSearchQuery(''); setActiveItemIndex(index); setProductModalVisible(true); }} style={[styles.lineProductSelect, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.08)' : 'rgba(129, 140, 248, 0.04)' }]}><TText numberOfLines={1} style={[styles.lineProductName, !item.name && { color: colors.textSecondary }]}>{item.name || 'Select Product...'}</TText></TouchableOpacity>
+                               <TouchableOpacity onPress={() => removeItem(item.id)} style={styles.lineRemove}><Trash2 size={18} color={COLORS.danger} /></TouchableOpacity>
+                            </TView>
+                            <TView style={styles.lineDataGrid}>
+                               <View style={styles.lineGridCell}><TText style={styles.lineCellLabel}>INCASE</TText><TView style={styles.lineCellVal}><TText style={styles.lineCellValTxt}>{item.incase}</TText></TView></View>
+                               <View style={styles.lineGridCell}><TText style={styles.lineCellLabel}>PIECES</TText><TView style={styles.lineCellVal}><TText style={styles.lineCellValTxt}>{item.pieces}</TText></TView></View>
+                               <View style={styles.lineGridCell}><TText style={styles.lineCellLabel}>RATE</TText><TView style={styles.lineCellVal}><TText style={styles.lineCellValTxt}>₹{item.price}</TText></TView></View>
+                               <View style={styles.lineGridCell}><TText style={styles.lineCellLabel}>HSN</TText><TView style={styles.lineCellVal}><TText style={styles.lineCellValTxt}>{item.hsn || '-'}</TText></TView></View>
+                            </TView>
+                            <TView style={styles.lineFooterAction}>
+                               <TView style={{ flex: 1 }}><TText style={styles.lineCellLabel}>QTY (BOX)</TText><TextInput value={item.qty} onChangeText={v => updateItem(item.id, 'qty', v)} keyboardType="numeric" style={[styles.lineQtyInput, { color: isDark ? '#fff' : '#000', borderColor: COLORS.primary }]} /></TView>
+                               <TView style={{ flex: 1.5 }}><TText style={styles.lineCellLabel}>ITEM TOTAL</TText><TView style={[styles.lineTotalBack, { backgroundColor: COLORS.primary + '08' }]}><TText style={styles.lineTotalValue}>₹{((parseFloat(item.qty)||0)*(parseFloat(item.price)||0)).toLocaleString('en-IN')}</TText></TView></TView>
+                            </TView>
+                         </TView>
+                      ))}
+                   </View>
+                </MotiView>
+              )}
+           </AnimatePresence>
+        </TView>
 
-             <TView style={styles.compactRow}>
-                <TView style={styles.compactCol}><TText style={styles.compactLabel}>INCASE</TText><TView style={styles.compactValueBox}><TText style={styles.compactValueText}>{item.incase}</TText></TView></TView>
-                <TView style={styles.compactCol}><TText style={styles.compactLabel}>PIECES</TText><TView style={styles.compactValueBox}><TText style={styles.compactValueText}>{item.pieces}</TText></TView></TView>
-                <TView style={styles.compactCol}><TText style={styles.compactLabel}>RATE</TText><TView style={styles.compactValueBox}><TText style={styles.compactValueText}>₹{item.price}</TText></TView></TView>
-                <TView style={styles.compactCol}><TText style={styles.compactLabel}>HSN</TText><TView style={styles.compactValueBox}><TText style={styles.compactValueText}>{item.hsn || '-'}</TText></TView></TView>
-             </TView>
-             
-             <TView style={[styles.compactRow, { marginTop: 12 }]}>
-                <TView style={{ flex: 1 }}><TText style={styles.compactLabel}>QTY (BOX)</TText><TextInput value={item.qty} onChangeText={v => updateItem(item.id, 'qty', v)} keyboardType="numeric" style={[styles.compactInput, { borderColor: COLORS.primary, color: isDark ? '#fff' : '#000' }]} /></TView>
-                <TView style={{ flex: 1.4 }}><TText style={styles.compactLabel}>ITEM TOTAL</TText><TView style={[styles.compactValueBox, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '20' }]}><TText style={[styles.compactValueText, { color: COLORS.primary, fontWeight: '900', fontSize: 13 }]}>₹{((parseFloat(item.qty)||0)*(parseFloat(item.price)||0)).toLocaleString('en-IN')}</TText></TView></TView>
-             </TView>
-          </MotiView>
-        ))}
+        <TView style={[styles.summaryPane, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : colors.card, borderColor: colors.border }]}>
+           <TView style={styles.summaryLine}><Calculator size={18} color={COLORS.primary} /><TText style={styles.summaryText}>Round Off</TText><TextInput value={adjustment} onChangeText={setAdjustment} keyboardType="numeric" style={[styles.summaryInput, { color: colors.text }]} /></TView>
+           <TView style={[styles.summaryLine, { marginTop: 12 }]}><Percent size={18} color={COLORS.primary} /><TText style={styles.summaryText}>Discount (%)</TText><TextInput value={discount} onChangeText={setDiscount} keyboardType="numeric" style={[styles.summaryInput, { color: COLORS.danger }]} /></TView>
+        </TView>
 
-        <TView style={[styles.adjustmentCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : colors.card, borderWidth: 1, borderColor: colors.border }]}><TView style={{ flexDirection: 'row', alignItems: 'center' }}><Calculator size={18} color={COLORS.primary} /><TText style={{ marginLeft: 10, fontWeight: '700' }}>Rounding / Adjustment</TText></TView><TextInput value={adjustment} onChangeText={setAdjustment} keyboardType="numeric" style={[styles.adjustInput, { color: colors.text, backgroundColor: 'rgba(129, 140, 248, 0.05)', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.1)' }]} /></TView>
-        <TView style={[styles.adjustmentCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : colors.card, borderWidth: 1, borderColor: colors.border, marginTop: 10 }]}><TView style={{ flexDirection: 'row', alignItems: 'center' }}><Percent size={18} color={COLORS.primary} /><TText style={{ marginLeft: 10, fontWeight: '700' }}>Discount (%)</TText></TView><TextInput value={discount} onChangeText={setDiscount} keyboardType="numeric" style={[styles.adjustInput, { color: COLORS.danger, backgroundColor: 'rgba(239, 68, 68, 0.05)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.1)' }]} /></TView>
-        <View style={{ height: 160 }} />
+        {/* PAYMENT METHOD SELECTOR */}
+        <TView style={styles.paymentContainer}>
+           <TText style={styles.gridTitleText}>PAYMENT METHOD</TText>
+           <TView style={styles.paymentRow}>
+              {['CASH', 'CREDIT', 'GPAY'].map((m: any) => (
+                 <TouchableOpacity 
+                   key={m} 
+                   onPress={() => setPaymentMethod(m)}
+                   style={[
+                     styles.paymentChip, 
+                     { borderColor: colors.border },
+                     paymentMethod === m && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }
+                   ]}
+                 >
+                    <TText style={[styles.paymentChipText, paymentMethod === m && { color: '#fff' }]}>{m}</TText>
+                 </TouchableOpacity>
+              ))}
+           </TView>
+        </TView>
+        <View style={{ height: 220 }} />
       </ScrollView>
 
-      <AnimatePresence><MotiView from={{ translateY: 100 }} animate={{ translateY: 0 }} style={[styles.premiumFooter, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.12)' : 'rgba(255, 255, 255, 0.98)', borderTopColor: COLORS.primary + '20', borderTopWidth: 2 }]}><TView style={styles.footerContent}><TView style={styles.totalBlock}><TText style={styles.totalLabel}>PAYABLE ({billGST}%)</TText><TText style={[styles.totalValueMain, { color: COLORS.primary }]}>₹{calculateTotal().toLocaleString('en-IN')}</TText><TText variant="caption" style={{ fontSize: 9, opacity: 0.6 }}>Incl. {billGST}% GST</TText></TView><TView style={styles.actionRow}><TouchableOpacity onPress={() => setPreviewModalVisible(true)} style={[styles.premiumPreviewBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}><Eye size={22} color={COLORS.primary} /></TouchableOpacity><TouchableOpacity onPress={handleSave} disabled={loading}><LinearGradient colors={[COLORS.primary, '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.completeBtnGradient}>{loading ? (<ActivityIndicator color="#fff" size="small" />) : (<TText style={styles.completeBtnText}>FINISH BILL</TText>)}</LinearGradient></TouchableOpacity></TView></TView></MotiView></AnimatePresence>
+      {/* REFACTORED FOOTER PANELS */}
+      <MotiView from={{ translateY: 150 }} animate={{ translateY: 0 }} transition={{ type: 'spring', damping: 20 }} style={[styles.bottomTray, { backgroundColor: isDark ? '#0F172A' : '#fff', borderTopColor: colors.border }]}>
+         <View style={styles.bottomTrayInner}>
+            <View style={styles.billSummary}>
+               <TText style={styles.billNetLabel}>NET PAYABLE</TText>
+               <View style={styles.billTotalRow}><TText style={styles.billCurrency}>₹</TText><TText style={styles.billGrandTotal}>{calculateTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TText></View>
+               <View style={styles.billBadgeRow}>
+                  <View style={[styles.billBadge, { backgroundColor: gstEnabled ? COLORS.success + '15' : 'rgba(0,0,0,0.05)' }]}><TText style={[styles.billBadgeText, { color: gstEnabled ? COLORS.success : colors.textSecondary }]}>{gstEnabled ? `${billGST}% GST INCL` : 'NO GST'}</TText></View>
+                  {parseFloat(discount) > 0 && <View style={styles.billDiscBadge}><TText style={styles.billDiscBadgeText}>{discount}% OFF</TText></View>}
+               </View>
+            </View>
+            <View style={styles.billActionArea}>
+               <TouchableOpacity onPress={() => setPreviewModalVisible(true)} style={[styles.billPreviewBtn, { backgroundColor: colors.surfaceSecondary }]}><Eye size={24} color={COLORS.primary} /></TouchableOpacity>
+               <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.billFinishBtn}><LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.billFinishGrad}>{loading ? <ActivityIndicator color="#fff" /> : (<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><TText style={styles.billFinishText}>FINISH</TText><ArrowRight size={20} color="#fff" /></View>)}</LinearGradient></TouchableOpacity>
+            </View>
+         </View>
+      </MotiView>
 
-      <Modal visible={productModalVisible} animationType="slide"><TView style={{ flex: 1, backgroundColor: colors.background }}><TView style={[styles.modalHeader, { borderBottomColor: colors.border }]}><TText style={{ fontWeight: '800', fontSize: 18 }}>Select Product</TText><TouchableOpacity onPress={() => setProductModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity></TView><TView style={{ padding: 20 }}><TView style={[styles.searchBar, { backgroundColor: colors.surfaceSecondary }]}><Search size={18} color={colors.textSecondary} /><TextInput placeholder="Search..." value={searchQuery} onChangeText={setSearchQuery} style={{ flex: 1, marginLeft: 10, color: colors.text }} /></TView></TView><FlatList data={products.filter(p => p.productname.toLowerCase().includes(searchQuery.toLowerCase()))} renderItem={({ item }) => (<TouchableOpacity onPress={() => { if (activeItemIndex !== null) updateItem(items[activeItemIndex].id, 'productid', item.productid); setProductModalVisible(false); }} style={[styles.modalListItem, { borderBottomColor: colors.border }]}><TText style={{ fontWeight: '700' }}>{item.productname}</TText><TText variant="caption">₹{item.sellingprice} | HSN: {item.hsn || '-'}</TText></TouchableOpacity>)} /></TView></Modal>
-      <Modal visible={previewModalVisible} animationType="slide"><SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}><TView style={[styles.modalHeader, { borderBottomColor: colors.border }]}><TText style={{ fontWeight: '900', color: colors.text }}>INVOICE PREVIEW</TText><TouchableOpacity onPress={() => setPreviewModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity></TView><ScrollView><ScrollView horizontal showsHorizontalScrollIndicator={false}><TView style={[styles.previewPaper, { backgroundColor: '#fff', margin: 20, borderRadius: 10, ...SHADOWS.lg }]}><Design1 data={{ business: businessProfile || {}, client: selectedClient || { clientname: 'Guest Client' }, billNo: billNo, billDate: billDate, items: items.map(it => ({ name: it.name || 'Untitled Item', hsn: it.hsn || '0000', box: it.qty, pieces: it.pieces, price: it.price, cgst: (parseFloat(it.qty) * parseFloat(it.price) * (parseFloat(billGST)/200)).toFixed(2), sgst: (parseFloat(it.qty) * parseFloat(it.price) * (parseFloat(billGST)/200)).toFixed(2), rate: (parseFloat(it.price) * (1 + (parseFloat(billGST) / 100))).toFixed(2), amount: (parseFloat(it.qty) * parseFloat(it.price) * (1 + (parseFloat(billGST) / 100))).toFixed(2) })), summary: { totalQty: items.reduce((acc, it) => acc + (parseInt(it.qty) || 0), 0).toString(), beforeTax: calculateSubtotal().toFixed(2), totalAmount: calculateTotal().toFixed(2), afterTax: calculateTotal().toFixed(2) }, docType: docType }} /></TView></ScrollView><TView style={{ padding: 20 }}><Button title="CLOSE PREVIEW" onPress={() => setPreviewModalVisible(false)} style={{ backgroundColor: COLORS.primary }} /></TView><View style={{ height: 100 }} /></ScrollView></SafeAreaView></Modal>
+      {/* MODALS */}
+      <Modal visible={clientModalVisible} animationType="fade" transparent><TView style={styles.centeredModal}><MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.modalSheet, { backgroundColor: colors.background }]}><TView style={[styles.modalTitleRow, { borderBottomColor: colors.border }]}><TText style={styles.modalTitle}>Select Client</TText><TouchableOpacity onPress={() => setClientModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity></TView><TView style={{ padding: 15 }}><TView style={[styles.modalSearchBar, { backgroundColor: colors.surfaceSecondary }]}><Search size={18} color={colors.textSecondary} /><TextInput placeholder="Filter by name..." value={searchQuery} onChangeText={setSearchQuery} style={{ flex: 1, marginLeft: 10, color: colors.text }} /></TView></TView><FlatList data={clients.filter(c => c.clientname.toLowerCase().includes(searchQuery.toLowerCase()))} renderItem={({ item }) => (<TouchableOpacity onPress={() => { setSelectedClient(item); setClientModalVisible(false); }} style={[styles.modalItemRow, { borderBottomColor: colors.border }]}><View style={styles.modalItemIcon}><UserIcon size={20} color={COLORS.primary} /></View><TView style={{ flex: 1 }}><TText style={{ fontWeight: '800', fontSize: 15 }}>{item.clientname}</TText><TText variant="caption">{item.mobile || 'GST: ' + (item.gstin || 'None')}</TText></TView><ChevronRight size={18} color={colors.textSecondary} /></TouchableOpacity>)} /></MotiView></TView></Modal>
+      <Modal visible={productModalVisible} animationType="fade" transparent><TView style={styles.centeredModal}><MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.modalSheet, { backgroundColor: colors.background }]}><TView style={[styles.modalTitleRow, { borderBottomColor: colors.border }]}><TText style={styles.modalTitle}>Select Product</TText><TouchableOpacity onPress={() => setProductModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity></TView><TView style={{ padding: 15 }}><TView style={[styles.modalSearchBar, { backgroundColor: colors.surfaceSecondary }]}><Search size={18} color={colors.textSecondary} /><TextInput placeholder="Filter by product..." value={searchQuery} onChangeText={setSearchQuery} style={{ flex: 1, marginLeft: 10, color: colors.text }} /></TView></TView><FlatList data={products.filter(p => p.productname.toLowerCase().includes(searchQuery.toLowerCase()))} renderItem={({ item }) => (<TouchableOpacity onPress={() => { if (activeItemIndex !== null) updateItem(items[activeItemIndex].id, 'productid', item.productid); setProductModalVisible(false); }} style={[styles.modalItemRow, { borderBottomColor: colors.border }]}><View style={[styles.modalItemIcon, { backgroundColor: COLORS.primary + '10' }]}><ShoppingBag size={20} color={COLORS.primary} /></View><TView style={{ flex: 1 }}><TText style={{ fontWeight: '800', fontSize: 15 }}>{item.productname}</TText><TText variant="caption">₹{item.sellingprice} | HSN: {item.hsn || '-'}</TText></TView><ChevronRight size={18} color={colors.textSecondary} /></TouchableOpacity>)} /></MotiView></TView></Modal>
+      <Modal visible={previewModalVisible} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <TView style={[styles.modalTitleRow, { borderBottomColor: colors.border }]}>
+            <TText style={{ fontWeight: '900' }}>INVOICE PREVIEW</TText>
+            <TouchableOpacity onPress={() => setPreviewModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity>
+          </TView>
+          <ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <TView style={styles.previewBox}>
+                <Design1 
+                  data={{ 
+                    business: businessProfile || {}, 
+                    client: selectedClient || { clientname: 'Guest Client' }, 
+                    billNo: billNo, 
+                    billDate: billDate, 
+                    withGST: gstEnabled, 
+                    items: items.map(it => {
+                      const taxable = parseFloat(it.qty) * parseFloat(it.price);
+                      const rate = gstEnabled ? parseFloat(billGST) : 0;
+                      const taxTotal = taxable * (rate / 100);
+                      return {
+                        name: it.name || '---',
+                        hsn: it.hsn || '---',
+                        box: it.qty,
+                        pieces: it.pieces,
+                        price: parseFloat(it.price).toFixed(2),
+                        cgst: (taxTotal / 2).toFixed(2),
+                        sgst: (taxTotal / 2).toFixed(2),
+                        rate: (parseFloat(it.price) * (1 + rate / 100)).toFixed(2),
+                        amount: (taxable + taxTotal).toFixed(2)
+                      };
+                    }), 
+                    summary: { 
+                      totalQty: items.reduce((acc, it) => acc + (parseFloat(it.qty) || 0), 0).toString(), 
+                      totalAmount: calculateTotal().toFixed(2), 
+                      beforeTax: calculateSubtotal().toFixed(2), 
+                      afterTax: calculateTotal().toFixed(2) 
+                    }, 
+                    docType: docType 
+                  }} 
+                />
+              </TView>
+            </ScrollView>
+            <TView style={{ padding: 25 }}>
+              <Button title="DISMISS PREVIEW" onPress={() => setPreviewModalVisible(false)} style={{ backgroundColor: COLORS.primary, height: 50, borderRadius: 12 }} />
+            </TView>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, paddingTop: Platform.OS === 'ios' ? 10 : 0 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1 },
   backBtn: { width: 44, height: 44, justifyContent: 'center' },
-  headerSection: { margin: 20, padding: 14, borderRadius: RADIUS.lg, borderWidth: 1.2, gap: 10 },
-  compactClientPicker: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(129, 140, 248, 0.05)', padding: 12, borderRadius: RADIUS.md, opacity: 0.8 },
-  pickerIconSmall: { width: 30, height: 30, borderRadius: 8, backgroundColor: 'rgba(129, 140, 248, 0.1)', justifyContent: 'center', alignItems: 'center' },
-  expandHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', padding: 12, borderRadius: RADIUS.md },
-  expandedMetaRow: { flexDirection: 'row', gap: 10, marginTop: 4, paddingBottom: 6 },
-  miniMetaDisabled: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.02)', paddingHorizontal: 10, height: 36, borderRadius: RADIUS.sm, opacity: 0.6 },
-  miniValueText: { marginLeft: 6, fontSize: 11, fontWeight: '800' },
-  miniMetaFull: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', paddingHorizontal: 10, height: 36, borderRadius: RADIUS.sm },
-  miniInput: { flex: 1, marginLeft: 6, fontSize: 12, fontWeight: '700' },
-  gstChip: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, marginRight: 8, backgroundColor: 'rgba(0,0,0,0.05)' },
-  gstChipText: { fontSize: 10, fontWeight: '800', color: COLORS.primary },
-  scrollContent: { paddingBottom: 100 },
-  typeSwitcher: { flexDirection: 'row', padding: 4, borderRadius: 12, marginHorizontal: 20, marginBottom: 10 },
-  typeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
-  typeLabel: { fontSize: 11, fontWeight: '800', color: COLORS.primary + '60' },
-  sectionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 20, marginBottom: 15, marginTop: 10 },
-  sectionTitle: { fontSize: 11, fontWeight: '900', color: COLORS.primary, letterSpacing: 1 },
-  addMiniBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },
-  itemCard: { marginHorizontal: 16, padding: 14, borderRadius: RADIUS.xl, marginBottom: 12 },
-  itemHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  itemNum: { width: 22, height: 22, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
-  itemNumText: { fontSize: 10, fontWeight: '900' },
-  productLink: { flex: 1, marginHorizontal: 10, borderBottomWidth: 1.5, borderBottomColor: COLORS.primary + '15', paddingBottom: 4 },
-  productNameText: { fontWeight: '800', fontSize: 14 },
-  compactRow: { flexDirection: 'row', gap: 8 },
-  compactCol: { flex: 1, alignItems: 'center' },
-  compactLabel: { fontSize: 7, fontWeight: '900', marginBottom: 6, color: COLORS.primary, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  compactInput: { width: '100%', height: 40, borderRadius: 8, textAlign: 'center', fontWeight: '900', fontSize: 16, borderWidth: 1.5, backgroundColor: 'rgba(129,140,248,0.05)' },
-  compactValueBox: { width: '100%', height: 38, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.04)', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' },
-  compactValueText: { fontSize: 11, fontWeight: '800', opacity: 0.9, textAlign: 'center' },
-  adjustmentCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 20, padding: 15, borderRadius: RADIUS.lg },
-  adjustInput: { width: 80, height: 36, borderRadius: 8, textAlign: 'right', paddingHorizontal: 10, fontWeight: '800' },
-  premiumFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 34 : 20, borderTopWidth: 2, borderTopColor: COLORS.primary + '30', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 25 },
-  footerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalBlock: { flex: 1 },
-  totalLabel: { fontSize: 11, fontWeight: '900', color: COLORS.primary, opacity: 0.8, letterSpacing: 1, marginBottom: 4 },
-  totalValueMain: { fontSize: 28, fontWeight: '900', color: COLORS.primary },
-  actionRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  premiumPreviewBtn: { width: 52, height: 52, borderRadius: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.2)' },
-  completeBtnGradient: { height: 56, borderRadius: 20, paddingHorizontal: 28, justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
-  completeBtnText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
-  previewPaper: { width: 850, alignSelf: 'center' },
-  modalHeader: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', height: 44, borderRadius: 10, paddingHorizontal: 15 },
-  modalListItem: { padding: 20, borderBottomWidth: 1 },
+  scrollContent: { paddingBottom: 150 },
+  typeSwitcher: { flexDirection: 'row', padding: 5, borderRadius: 16, marginHorizontal: 20, marginBottom: 15, marginTop: 15 },
+  typeBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
+  activeTypeBtn: { backgroundColor: '#fff', ...SHADOWS.sm },
+  typeLabel: { fontSize: 11, fontWeight: '800', color: COLORS.primary + '50' },
+  headerLayout: { marginHorizontal: 0, marginTop: 10 },
+  standardCard: { marginHorizontal: 16, padding: 18, borderRadius: RADIUS.xl, borderWidth: 1.2, gap: 14 },
+  compactPicker: { height: 50, borderRadius: 12, borderWidth: 1.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, backgroundColor: 'rgba(0,0,0,0.02)' },
+  compactMetaGrid: { flexDirection: 'row', gap: 12 },
+  compactMetaBox: { flex: 1, height: 44, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.03)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
+  compactMetaVal: { marginLeft: 10, fontSize: 13, fontWeight: '800' },
+  taxSection: { padding: 12, backgroundColor: 'rgba(129, 140, 248, 0.04)', borderRadius: 16 },
+  taxSectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  swtBase: { width: 44, height: 24, borderRadius: 12, padding: 2, justifyContent: 'center' },
+  swtKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
+  gstOptionChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, marginRight: 10, backgroundColor: 'rgba(0,0,0,0.06)' },
+  gstOptionText: { fontSize: 11, fontWeight: '900', color: COLORS.primary },
+  taxOff: { marginTop: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: 10, alignItems: 'center' },
+  taxOffText: { fontSize: 11, fontWeight: '800', opacity: 0.5 },
+  particularsSection: { marginTop: 20 },
+  gridTitleBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 20, marginBottom: 12 },
+  gridTitleLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  gridTitleText: { fontSize: 12, fontWeight: '900', color: COLORS.primary, letterSpacing: 0.5 },
+  addCta: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', ...SHADOWS.sm },
+  lineCard: { marginHorizontal: 16, padding: 18, borderRadius: RADIUS.xl, borderWidth: 1.2, marginBottom: 14 },
+  lineHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  lineIdx: { width: 24, height: 24, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  lineProductSelect: { flex: 1, marginHorizontal: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, borderBottomWidth: 1.5, borderBottomColor: COLORS.primary + '20' },
+  lineProductName: { fontWeight: '800', fontSize: 15 },
+  lineRemove: { padding: 8 },
+  lineDataGrid: { flexDirection: 'row', gap: 10 },
+  lineGridCell: { flex: 1, alignItems: 'center' },
+  lineCellLabel: { fontSize: 8, fontWeight: '900', color: COLORS.primary, opacity: 0.6, marginBottom: 8, letterSpacing: 0.5 },
+  lineCellVal: { width: '100%', height: 40, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.04)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.02)' },
+  lineCellValTxt: { fontSize: 12, fontWeight: '800', opacity: 0.8 },
+  lineFooterAction: { flexDirection: 'row', gap: 12, marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.03)' },
+  lineQtyInput: { height: 46, borderRadius: 12, borderWidth: 1.5, textAlign: 'center', fontWeight: '900', fontSize: 18, backgroundColor: 'rgba(129, 140, 248, 0.03)' },
+  lineTotalBack: { height: 46, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.primary + '10' },
+  lineTotalValue: { fontSize: 16, fontWeight: '900', color: COLORS.primary },
+  summaryPane: { marginHorizontal: 16, marginTop: 10, padding: 18, borderRadius: RADIUS.xl, borderWidth: 1.2 },
+  summaryLine: { flexDirection: 'row', alignItems: 'center' },
+  summaryText: { flex: 1, marginLeft: 12, fontWeight: '800', fontSize: 13, opacity: 0.7 },
+  summaryInput: { width: 90, height: 40, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.03)', textAlign: 'right', paddingHorizontal: 12, fontWeight: '900', fontSize: 14 },
+  bottomTray: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopWidth: 1.5 },
+  bottomTrayInner: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 34 : 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  billSummary: { flex: 1.2 },
+  billNetLabel: { fontSize: 10, fontWeight: '900', opacity: 0.5, letterSpacing: 1, marginBottom: 4 },
+  billTotalRow: { flexDirection: 'row', alignItems: 'baseline' },
+  billCurrency: { fontSize: 18, fontWeight: '800', color: COLORS.primary, marginRight: 2, marginBottom: 4 },
+  billGrandTotal: { fontSize: 32, fontWeight: '900', color: COLORS.primary, letterSpacing: -1 },
+  billBadgeRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  billBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  billBadgeText: { fontSize: 9, fontWeight: '900' },
+  billDiscBadge: { backgroundColor: COLORS.danger + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  billDiscBadgeText: { color: COLORS.danger, fontSize: 9, fontWeight: '900' },
+  billActionArea: { flex: 1, flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'flex-end' },
+  billPreviewBtn: { width: 52, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center', ...SHADOWS.sm },
+  billFinishBtn: { flex: 1, height: 52, borderRadius: 16, overflow: 'hidden', ...SHADOWS.md },
+  billFinishGrad: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  billFinishText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
+  centeredModal: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  modalSheet: { width: '100%', height: '70%', borderRadius: 30, overflow: 'hidden' },
+  modalTitleRow: { height: 65, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, borderBottomWidth: 1 },
+  modalTitle: { fontWeight: '900', fontSize: 18 },
+  modalSearchBar: { height: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
+  modalItemRow: { flexDirection: 'row', alignItems: 'center', padding: 20, borderBottomWidth: 1, gap: 15 },
+  modalItemIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(129, 140, 248, 0.08)', justifyContent: 'center', alignItems: 'center' },
+  previewBox: { width: 850, backgroundColor: '#fff', borderRadius: 12 },
+  paymentContainer: { marginHorizontal: 20, marginTop: 25 },
+  paymentRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  paymentChip: { flex: 1, height: 44, borderRadius: 12, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
+  paymentChipText: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
 });
 
 export default MobileBilling;

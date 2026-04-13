@@ -186,11 +186,7 @@ export default function SettingsScreen() {
         <SettingGroup title="Preferences">
           <SettingItem 
             icon={Moon} title="Dark Appearance" subtitle="Switch between light and dark modes" 
-            showSwitch value={isDark} onToggle={toggleTheme} 
-          />
-          <SettingItem 
-            icon={Bell} title="Smart Notifications" subtitle="Low stock and daily revenue alerts" 
-            showSwitch value={true} isLast 
+            showSwitch value={isDark} onToggle={toggleTheme} isLast
           />
         </SettingGroup>
 

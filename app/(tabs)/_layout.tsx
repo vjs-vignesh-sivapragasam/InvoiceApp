@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform, View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useTheme } from '../../components/ThemedUI';
-import { LayoutDashboard, ReceiptText, History, Settings, BarChart2, Database } from 'lucide-react-native';
+import { LayoutDashboard, Plus, History, Settings, Database } from 'lucide-react-native';
 import { COLORS } from '../../theme';
 
 export default function TabLayout() {
@@ -57,7 +57,7 @@ export default function TabLayout() {
                 shadowOpacity: focused ? 0.4 : 0,
               }
             ]}>
-              <ReceiptText size={28} color={focused ? '#fff' : color} />
+              <Plus size={32} color={focused ? '#fff' : COLORS.primary} />
             </View>
           ),
           tabBarLabel: () => null,
