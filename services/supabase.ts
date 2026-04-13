@@ -311,7 +311,7 @@ export const db = {
       try {
         const { data, error } = await Promise.race([
           supabase.from('userlogindetails').select('*').eq('userid', userId).maybeSingle(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('FETCH_TIMEOUT')), 30000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('FETCH_TIMEOUT')), 5000))
         ]) as any;
 
         if (error) {
