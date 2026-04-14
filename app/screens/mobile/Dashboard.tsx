@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
    Activity,
-   Bell,
    ChevronRight,
    Clock,
    DollarSign,
@@ -13,7 +12,8 @@ import {
    Sun,
    TrendingUp,
    Users,
-   Zap
+   Zap,
+   AlertTriangle
 } from 'lucide-react-native';
 import { AnimatePresence, MotiView } from 'moti';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -46,10 +46,6 @@ const GlassHeader = ({ isDark, toggleTheme, userName }: any) => {
             <View style={styles.headerActions}>
                <TouchableOpacity onPress={toggleTheme} style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
                   {isDark ? <Sun size={20} color="#FBBF24" /> : <Moon size={20} color="#6366F1" />}
-               </TouchableOpacity>
-               <TouchableOpacity style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
-                  <View style={styles.notifDot} />
-                  <Bell size={20} color={isDark ? '#94A3B8' : '#64748B'} />
                </TouchableOpacity>
             </View>
          </View>
@@ -123,6 +119,7 @@ export default function DashboardScreen() {
       topProducts: [] as any[],
       recentInvoices: [] as any[],
       weeklyPerf: [] as any[],
+      criticalLowCount: 0,
    });
 
    const fetchData = useCallback(async () => {
@@ -140,7 +137,7 @@ export default function DashboardScreen() {
          const [clients, invoices, products, dbProfile] = await Promise.all([
             db.clients.getAll(),
             db.billing.getAll(),
-            db.products.getAll(),
+            db.products.getWithStock(),
             fetchProfileSafe()
          ]);
 
@@ -178,7 +175,8 @@ export default function DashboardScreen() {
             value: d.revenue / maxRev
          }));
 
-         const totalStock = products.reduce((acc, p) => acc + (parseFloat(p.pieces?.toString()) || 0), 0);
+         const totalStock = products.reduce((acc, p) => acc + (p.currentStock || 0), 0);
+         const criticalLowProducts = products.filter(p => p.currentStock < 10);
 
          setStats({
             totalRevenue,
@@ -187,7 +185,8 @@ export default function DashboardScreen() {
             totalStock,
             topProducts: products.slice(0, 8), // Show more in the scrollable view
             recentInvoices: invoices.slice(0, 4),
-            weeklyPerf
+            weeklyPerf,
+            criticalLowCount: criticalLowProducts.length
          });
       } catch (e) {
          console.error('Dashboard error:', e);
@@ -218,6 +217,21 @@ export default function DashboardScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.primary} />}
          >
             <GlassHeader isDark={isDark} toggleTheme={toggleTheme} userName={userName} />
+
+            {/* CRITICAL STOCK ALERT */}
+            {stats.criticalLowCount > 0 && (
+               <MotiView 
+                  from={{ scale: 0.9, opacity: 0 }} 
+                  animate={{ scale: 1, opacity: 1 }} 
+                  style={[styles.alertBanner, { backgroundColor: COLORS.danger + '15', borderColor: COLORS.danger + '30' }]}
+               >
+                  <AlertTriangle size={20} color={COLORS.danger} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                     <TText style={{ color: COLORS.danger, fontWeight: '900', fontSize: 13 }}>CRITICAL STOCK ALERT</TText>
+                     <TText style={{ color: COLORS.danger, fontSize: 11, opacity: 0.8 }}>{stats.criticalLowCount} products are running low on stock. Please restock soon.</TText>
+                  </View>
+               </MotiView>
+            )}
 
             {/* HIGH IMPACT SUMMARY SECTION */}
             <View style={styles.summarySection}>
@@ -278,8 +292,10 @@ export default function DashboardScreen() {
                         >
                            <LinearGradient colors={grad} style={styles.inventoryGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                               <View style={styles.invTop}>
-                                 <Package size={14} color="rgba(255,255,255,0.6)" />
-                                 <TText style={styles.invStock}>{p.pieces || 0}</TText>
+                                 <TView style={[styles.stockTag, { backgroundColor: (p.currentStock || 0) < 10 ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.2)' }]}>
+                                    <TText style={styles.invStock}>{p.currentStock || 0}</TText>
+                                 </TView>
+                                 {(p.currentStock || 0) < 10 && <AlertTriangle size={14} color="#fff" />}
                               </View>
                               <TText style={styles.invLabel}>{p.productname}</TText>
                            </LinearGradient>
@@ -342,7 +358,6 @@ const styles = StyleSheet.create({
    headerName: { fontSize: 26, fontWeight: '900', color: COLORS.primary, letterSpacing: -0.5 },
    headerActions: { flexDirection: 'row', gap: 12 },
    headerIconBtn: { width: 44, height: 44, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-   notifDot: { position: 'absolute', top: 12, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EC4899', zIndex: 1, borderWidth: 1.5, borderColor: '#fff' },
 
    // Summary
    summarySection: { paddingHorizontal: 25, flexDirection: 'row', gap: 12, height: 210, marginBottom: 25 },
@@ -398,6 +413,9 @@ const styles = StyleSheet.create({
    inventoryCard: { width: 160, borderRadius: 18, overflow: 'hidden', ...SHADOWS.sm },
    inventoryGrad: { flex: 1, padding: 15, height: 110, justifyContent: 'space-between' },
    invTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-   invStock: { color: '#fff', fontSize: 20, fontWeight: '900' },
+   stockTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+   invStock: { color: '#fff', fontSize: 18, fontWeight: '900' },
    invLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '800', lineHeight: 14 },
+   alertBanner: { marginHorizontal: 25, marginBottom: 20, padding: 15, borderRadius: 18, borderWidth: 1, flexDirection: 'row', alignItems: 'center' },
+   alertAction: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center' },
 });

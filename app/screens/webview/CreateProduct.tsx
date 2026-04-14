@@ -22,15 +22,14 @@ export const CreateProduct = () => {
 
   const [formData, setFormData] = useState({
     productname: '',
-    producttype: '',
-    incase: '', // Box
-    pieces: '1',
+    producttype: 'Normal',
+    incase: '', // Bound to 'incase' 
+    piecesinbox: '', // Bound to 'pieces' 
+    pieces: '0', // Opening Stock -> Bound to 'optional1'
     hsn: '',
-    purchaseorder: '',
+    purchaseprice: '', // Bound to 'purchaseorder'
     sellingprice: '',
     mrp: '',
-    discpercentage: '0',
-    optional1: ''
   });
 
   useEffect(() => {
@@ -39,7 +38,7 @@ export const CreateProduct = () => {
 
   const fetchProducts = async () => {
     try {
-      const data = await db.products.getAll();
+      const data = await db.products.getWithStock();
       setProducts(data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -51,20 +50,37 @@ export const CreateProduct = () => {
   const handleSave = async () => {
     try {
       const payload = {
-        ...formData,
+        productname: formData.productname,
+        producttype: formData.producttype,
         incase: parseInt(formData.incase) || 0,
-        pieces: parseInt(formData.pieces) || 1,
+        pieces: parseInt(formData.piecesinbox) || 0,
         sellingprice: parseFloat(formData.sellingprice) || 0,
+        purchaseorder: formData.purchaseprice?.toString() || '0',
         mrp: parseFloat(formData.mrp) || 0,
-        discpercentage: parseFloat(formData.discpercentage) || 0
+        hsn: formData.hsn,
       };
+
+      // Remove non-existent fields
+      delete (payload as any).piecesinbox;
+      delete (payload as any).purchaseprice;
 
       if (editingProduct) {
         await db.products.update(editingProduct.productid, payload);
         showToast('Product updated successfully!');
       } else {
-        await db.products.create(payload);
-        showToast('New product added to inventory!');
+        const newProd = await db.products.create(payload);
+        const initialStock = parseInt(formData.pieces) || 0;
+        if (initialStock > 0) {
+          await db.inventory.logMovement({
+            productid: newProd.productid,
+            movementtype: 'restock',
+            quantitymoved: initialStock,
+            previousstock: 0,
+            newstock: initialStock,
+            notes: 'Initial opening stock'
+          });
+        }
+        showToast('Product added successfully!');
       }
       setShowForm(false);
       setEditingProduct(null);
@@ -77,8 +93,8 @@ export const CreateProduct = () => {
 
   const resetForm = () => {
     setFormData({
-      productname: '', producttype: '', incase: '', pieces: '1', hsn: '',
-      purchaseorder: '', sellingprice: '', mrp: '', discpercentage: '0', optional1: ''
+      productname: '', producttype: 'Normal', incase: '', piecesinbox: '', pieces: '0', hsn: '',
+      purchaseprice: '', sellingprice: '', mrp: ''
     });
   };
 
@@ -93,16 +109,17 @@ export const CreateProduct = () => {
     }
   };
 
-  const FormField = ({ label, value, onChange, placeholder, icon: Icon, width = '48%' }: any) => (
+  const FormField = ({ label, value, onChange, placeholder, icon: Icon, width = '48%', disabled = false }: any) => (
     <View style={{ width, marginBottom: 16 }}>
       <TText variant="caption" style={styles.label}>{label}</TText>
-      <TView style={[styles.inputWrapper, { backgroundColor: colors.surfaceSecondary }]}>
+      <TView style={[styles.inputWrapper, { backgroundColor: colors.surfaceSecondary, opacity: disabled ? 0.6 : 1 }]}>
         <Icon size={16} color={colors.textSecondary} />
         <TextInput 
           value={value} 
           onChangeText={onChange} 
           placeholder={placeholder} 
-          style={[styles.input, { color: colors.text }]} 
+          editable={!disabled}
+          style={[styles.input, { color: disabled ? colors.textSecondary : colors.text }]} 
           placeholderTextColor={colors.textSecondary}
         />
       </TView>
@@ -148,14 +165,16 @@ export const CreateProduct = () => {
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingRight: 10 }}>
                   <View style={styles.grid}>
                     <FormField label="Product Name" value={formData.productname} onChange={(v:any)=>setFormData({...formData, productname:v})} placeholder="e.g. Wireless Mouse" icon={Package} width="100%" />
-                    <FormField label="Product Type" value={formData.producttype} onChange={(v:any)=>setFormData({...formData, producttype:v})} placeholder="e.g. Hardware" icon={ShoppingBag} />
+                    <FormField label="Product Type" value={formData.producttype} onChange={(v:any)=>setFormData({...formData, producttype:v})} placeholder="e.g. Hardware" icon={Tag} />
                     <FormField label="HSN Code" value={formData.hsn} onChange={(v:any)=>setFormData({...formData, hsn:v})} placeholder="8471" icon={Hash} />
-                    <FormField label="Box/Case Size" value={formData.incase} onChange={(v:any)=>setFormData({...formData, incase:v})} placeholder="24" icon={Box} />
-                    <FormField label="Pieces per Case" value={formData.pieces} onChange={(v:any)=>setFormData({...formData, pieces:v})} placeholder="1" icon={Package} />
-                    <FormField label="Selling Price" value={formData.sellingprice} onChange={(v:any)=>setFormData({...formData, sellingprice:v})} placeholder="0.00" icon={DollarSign} />
+                    
+                    <TText style={{ width: '100%', marginTop: 10, fontWeight: '800', color: COLORS.primary }}>PRICING & PACKAGING</TText>
+                    <FormField label="Purchase Order Price" value={formData.purchaseprice} onChange={(v:any)=>setFormData({...formData, purchaseprice:v})} placeholder="0.00" icon={DollarSign} />
+                    <FormField label="Selling Price" value={formData.sellingprice} onChange={(v:any)=>setFormData({...formData, sellingprice:v})} placeholder="0.00" icon={ShoppingBag} />
                     <FormField label="MRP" value={formData.mrp} onChange={(v:any)=>setFormData({...formData, mrp:v})} placeholder="0.00" icon={Tag} />
-                    <FormField label="Discount %" value={formData.discpercentage} onChange={(v:any)=>setFormData({...formData, discpercentage:v})} placeholder="0" icon={Percent} />
-                    <FormField label="Purchase Order Ref" value={formData.purchaseorder} onChange={(v:any)=>setFormData({...formData, purchaseorder:v})} placeholder="PO-123" icon={FileText} />
+                    <FormField label="InCase" value={formData.incase} onChange={(v:any)=>setFormData({...formData, incase:v})} placeholder="Qty per Case" icon={Box} />
+                    <FormField label="Pieces per Box" value={formData.piecesinbox} onChange={(v:any)=>setFormData({...formData, piecesinbox:v})} placeholder="Qty per Box" icon={Package} />
+                    <FormField label="Opening Stock" value={formData.pieces} onChange={(v:any)=>setFormData({...formData, pieces:v})} placeholder="0" icon={FileText} disabled={true} />
                   </View>
                   <Button title={editingProduct ? "Update Record" : "Save Product"} onPress={handleSave} style={{ marginTop: 24 }} />
                 </ScrollView>
@@ -168,8 +187,9 @@ export const CreateProduct = () => {
         <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
           <TText style={[styles.col, { flex: 2 }]} variant="caption">Product Name</TText>
           <TText style={styles.col} variant="caption">HSN</TText>
-          <TText style={styles.col} variant="caption">Box/Case</TText>
-          <TText style={styles.col} variant="caption">Price (MRP)</TText>
+          <TText style={styles.col} variant="caption">Packaging</TText>
+          <TText style={styles.col} variant="caption">Stock</TText>
+          <TText style={styles.col} variant="caption">Pricing (Sell/MRP)</TText>
           <TText style={styles.col} variant="caption">Status</TText>
           <View style={{ width: 60 }} />
         </View>
@@ -182,12 +202,13 @@ export const CreateProduct = () => {
                <TText style={{ marginLeft: 12, fontWeight: '600' }}>{p.productname}</TText>
             </View>
             <TText style={styles.col} variant="body">{p.hsn || '-'}</TText>
-            <TText style={styles.col} variant="body">{p.incase || '0'} / {p.pieces || '1'}</TText>
-            <TText style={styles.col} variant="body">${p.sellingprice} <TText variant="caption" style={{fontSize: 10}}>(${p.mrp})</TText></TText>
+            <TText style={styles.col} variant="body">{p.incase || '0'} / {p.pieces || '0'}</TText>
+            <TText style={styles.col} variant="body">{(p as any).currentStock || '0'}</TText>
+            <TText style={styles.col} variant="body">₹{p.sellingprice} <TText variant="caption" style={{fontSize: 10}}>(₹{p.mrp})</TText></TText>
             <View style={styles.col}>
               <Switch value={p.isactive} onValueChange={() => toggleStatus(p.productid, p.isactive)} trackColor={{ false: colors.border, true: COLORS.primary }} />
             </View>
-            <TouchableOpacity onPress={() => { setEditingProduct(p); setFormData({ ...p, incase: p.incase?.toString(), pieces: p.pieces?.toString(), sellingprice: p.sellingprice?.toString(), mrp: p.mrp?.toString(), discpercentage: p.discpercentage?.toString() }); setShowForm(true); }} style={styles.iconBtn}>
+            <TouchableOpacity onPress={() => { setEditingProduct(p); setFormData({ ...p, incase: p.incase?.toString(), piecesinbox: p.pieces?.toString(), pieces: (p as any).currentStock?.toString(), sellingprice: p.sellingprice?.toString(), mrp: p.mrp?.toString(), purchaseprice: p.purchaseorder?.toString() }); setShowForm(true); }} style={styles.iconBtn}>
               <Edit3 size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>

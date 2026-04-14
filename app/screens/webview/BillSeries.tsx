@@ -33,8 +33,10 @@ export const BillSeries = () => {
     checkTransactions();
   }, []);
 
-  const nextNumber = (parseInt(localConfig.startingNumber) + parseInt(config.billSeriesCount)).toString().padStart(3, '0');
-  const previewText = `${localConfig.prefix}${localConfig.delimiter}${nextNumber}`;
+  const startNum = localConfig.startingNumber || '';
+  const currentCount = parseInt(config.billSeriesCount) || 0;
+  const nextCount = (currentCount + 1).toString().padStart(2, '0');
+  const previewText = `${localConfig.prefix}${localConfig.delimiter}${startNum}${localConfig.delimiter}${nextCount}`;
 
   const handleSave = async () => {
     if (hasTransactions) return;
@@ -117,7 +119,7 @@ export const BillSeries = () => {
               <TText style={styles.label}>Sequence Tracker</TText>
               <TextInput 
                 style={[styles.input, { color: colors.textSecondary, borderColor: colors.border, backgroundColor: 'rgba(0,0,0,0.05)' }]}
-                value={config.billSeriesCount.toString()}
+                value={config.billSeriesCount.toString().padStart(2, '0')}
                 editable={false}
               />
             </View>
@@ -140,7 +142,7 @@ export const BillSeries = () => {
               <TText style={{ color: '#fff', fontSize: 36, fontWeight: '900', marginTop: 10 }}>{previewText}</TText>
               <TView style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.2)', width: '100%', marginVertical: 20 }} />
               <TText style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 20 }}>
-                This matches the template: <TText style={{ fontWeight: '900' }}>[PREFIX][DELIMITER][SEQUENCE]</TText>
+                This matches the template: <TText style={{ fontWeight: '900' }}>[PREFIX][DELIMITER][STARTING][DELIMITER][SEQUENCE]</TText>
               </TText>
            </TView>
 

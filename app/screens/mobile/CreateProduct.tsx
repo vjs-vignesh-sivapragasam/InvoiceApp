@@ -1,28 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Platform, Modal, View, SafeAreaView, RefreshControl } from 'react-native';
-import { MotiView, AnimatePresence } from 'moti';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { Button } from '../../../components/Button';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '../../../theme';
-import { db } from '../../../services/supabase';
-import { useNotifications } from '../../../components/NotificationProvider';
-import { Plus, Search, Edit2, Package, Hash, Box, DollarSign, Tag, X, ShoppingBag, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { Box, ChevronLeft, DollarSign, Edit2, Hash, Package, Plus, Search, ShoppingBag, Tag, X } from 'lucide-react-native';
+import { MotiView } from 'moti';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button } from '../../../components/Button';
+import { useNotifications } from '../../../components/NotificationProvider';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
+import { db } from '../../../services/supabase';
+import { COLORS, RADIUS, SHADOWS } from '../../../theme';
 
 // 🛡️ Resilience Layer: Moved outside to prevent focus loss (Keyboard Auto-Close Fix)
-const FormField = ({ label, value, onChange, placeholder, icon: Icon, keyboardType = 'default' }: any) => {
+const FormField = ({ label, value, onChange, placeholder, icon: Icon, keyboardType = 'default', disabled = false }: any) => {
   const { colors } = useTheme();
   return (
     <View style={{ marginBottom: 16 }}>
       <TText variant="caption" style={styles.label}>{label}</TText>
-      <TView style={[styles.inputWrapper, { backgroundColor: colors.surfaceSecondary }]}>
+      <TView style={[styles.inputWrapper, { backgroundColor: colors.surfaceSecondary, opacity: disabled ? 0.6 : 1 }]}>
         <Icon size={16} color={colors.textSecondary} />
-        <TextInput 
-          value={value} 
-          onChangeText={onChange} 
-          placeholder={placeholder} 
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
           keyboardType={keyboardType}
-          style={[styles.input, { color: colors.text }]} 
+          editable={!disabled}
+          selectTextOnFocus={!disabled}
+          style={[styles.input, { color: disabled ? colors.textSecondary : colors.text }]}
           placeholderTextColor={colors.textSecondary}
         />
       </TView>
@@ -45,17 +47,19 @@ const MobileProductManagement = () => {
     hsn: '',
     mrp: '',
     sellingprice: '',
-    incase: '', // Box count
-    pieces: '0', // Initial stock
+    purchaseprice: '', // Bound to 'purchaseorder' column
+    incase: '', // Bound to 'incase' column
+    piecesinbox: '', // Bound to 'pieces' column
+    pieces: '0', // Opening stock
     producttype: 'Normal'
   });
 
   const fetchProducts = useCallback(async () => {
     try {
-      const data = await db.products.getAll();
+      const data = await db.products.getWithStock();
       setProducts(data);
-    } catch (error) {
-      console.error(error);
+    } catch (e) {
+      showToast('Sync failed', 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,23 +78,43 @@ const MobileProductManagement = () => {
   const handleSave = async () => {
     if (!formData.productname) return showToast('Product name is required', 'error');
     if (!formData.sellingprice) return showToast('Selling price is required', 'error');
-    
+
     setLoading(true);
     try {
       const payload = {
-        ...formData,
+        productname: formData.productname,
+        hsn: formData.hsn,
+        producttype: formData.producttype,
         mrp: parseFloat(formData.mrp) || 0,
         sellingprice: parseFloat(formData.sellingprice) || 0,
+        purchaseorder: formData.purchaseprice?.toString() || '0',
         incase: parseInt(formData.incase) || 0,
-        pieces: parseInt(formData.pieces) || 0,
+        pieces: parseInt(formData.piecesinbox) || 0, // This is 'Pieces per box'
       };
+
+      // Remove the non-existent fields from the payload to prevent Supabase errors
+      delete (payload as any).purchaseprice;
+      delete (payload as any).piecesinbox;
 
       if (editingProduct) {
         await db.products.update(editingProduct.productid, payload);
         showToast('Product updated!');
       } else {
-        await db.products.create(payload);
-        showToast('Product added to catalog!');
+        const newProd = await db.products.create(payload);
+
+        // Initial stock entry if provided
+        const initialStock = parseInt(formData.pieces) || 0;
+        if (initialStock > 0) {
+          await db.inventory.logMovement({
+            productid: newProd.productid,
+            movementtype: 'restock',
+            quantitymoved: initialStock,
+            previousstock: 0,
+            newstock: initialStock,
+            notes: 'Initial opening stock'
+          });
+        }
+        showToast('Product created!');
       }
       setShowForm(false);
       setEditingProduct(null);
@@ -105,8 +129,8 @@ const MobileProductManagement = () => {
 
   const resetForm = () => {
     setFormData({
-      productname: '', hsn: '', mrp: '', sellingprice: '',
-      incase: '', pieces: '0', producttype: 'Normal'
+      productname: '', hsn: '', mrp: '', sellingprice: '', purchaseprice: '',
+      incase: '', piecesinbox: '', pieces: '0', producttype: 'Normal'
     });
   };
 
@@ -116,16 +140,16 @@ const MobileProductManagement = () => {
       fetchProducts();
       showToast('Status updated');
     } catch (error) {
-       showToast('Error updating status', 'error');
+      showToast('Error updating status', 'error');
     }
   };
 
-  const filteredProducts = products.filter(p => 
+  const filteredProducts = products.filter(p =>
     p.productname.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.hsn || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading && products.length === 0) return <TView style={{flex: 1, justifyContent: 'center'}}><ActivityIndicator size="large" color={COLORS.primary} /></TView>;
+  if (loading && products.length === 0) return <TView style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator size="large" color={COLORS.primary} /></TView>;
 
   const router = useRouter();
 
@@ -142,22 +166,22 @@ const MobileProductManagement = () => {
       <TView style={styles.searchContainer}>
         <TView style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Search size={18} color={colors.textSecondary} />
-          <TextInput 
+          <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search by name or HSN..." 
-            style={{ marginLeft: 8, flex: 1, color: colors.text, fontWeight: '600' }} 
+            placeholder="Search by name or HSN..."
+            style={{ marginLeft: 8, flex: 1, color: colors.text, fontWeight: '600' }}
           />
         </TView>
       </TView>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />
@@ -177,24 +201,26 @@ const MobileProductManagement = () => {
               </TView>
               <TView style={{ flex: 1, marginLeft: 16 }}>
                 <TText style={{ fontWeight: '800', fontSize: 16 }}>{p.productname}</TText>
-                <TView style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                   <TText variant="caption" style={{ fontWeight: '600' }}>HSN: {p.hsn || '-'}</TText>
-                   <TText variant="caption" style={{ marginHorizontal: 6 }}>•</TText>
-                   <TText variant="caption" style={{ fontWeight: '600' }}>BOX: {p.incase || '0'}</TText>
-                   <TText variant="caption" style={{ marginHorizontal: 6 }}>•</TText>
-                   <TText style={{ color: COLORS.primary, fontWeight: '900', fontSize: 13 }}>₹{p.sellingprice}</TText>
+                <TView style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  <TText variant="caption" style={{ fontWeight: '600', opacity: 0.7 }}>HSN: {p.hsn || '-'}</TText>
+                  <TText variant="caption" style={{ opacity: 0.3 }}>|</TText>
+                  <TText variant="caption" style={{ fontWeight: '600' }}>{p.incase || '0'}C x {p.piecesinbox || '0'}P</TText>
+                  <TText variant="caption" style={{ opacity: 0.3 }}>|</TText>
+                  <TText style={{ color: COLORS.primary, fontWeight: '900', fontSize: 13 }}>₹{p.sellingprice}</TText>
                 </TView>
               </TView>
               <TView style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => {
                     setEditingProduct(p);
-                    setFormData({ 
-                      ...p, 
+                    setFormData({
+                      ...p,
                       mrp: p.mrp?.toString() || '',
                       sellingprice: p.sellingprice?.toString() || '',
+                      purchaseprice: p.purchaseorder?.toString() || '',
                       incase: p.incase?.toString() || '',
-                      pieces: p.pieces?.toString() || '0'
+                      piecesinbox: p.pieces?.toString() || '',
+                      pieces: (p as any).currentStock?.toString() || '0'
                     });
                     setShowForm(true);
                   }}
@@ -202,22 +228,22 @@ const MobileProductManagement = () => {
                 >
                   <Edit2 size={18} color={COLORS.primary} />
                 </TouchableOpacity>
-                <Switch 
-                   value={p.isactive} 
-                   onValueChange={() => toggleStatus(p.productid, p.isactive)}
-                   trackColor={{ false: 'rgba(0,0,0,0.1)', true: COLORS.success }}
+                <Switch
+                  value={p.isactive}
+                  onValueChange={() => toggleStatus(p.productid, p.isactive)}
+                  trackColor={{ false: 'rgba(0,0,0,0.1)', true: COLORS.success }}
                 />
               </TView>
             </TView>
             <TView style={[styles.divider, { backgroundColor: colors.border }]} />
             <TView style={styles.cardActions}>
-               <TView style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Tag size={12} color={colors.textSecondary} />
-                  <TText variant="caption" style={{ marginLeft: 6, fontWeight: '600' }}>Stock pieces: {p.pieces || '0'}</TText>
-               </TView>
-               <TView style={[styles.statusBadge, { backgroundColor: p.isactive ? COLORS.success + '15' : COLORS.danger + '15' }]}>
-                  <TText style={{ fontSize: 10, fontWeight: '900', color: p.isactive ? COLORS.success : COLORS.danger }}>{p.isactive ? 'Active' : 'InActive'}</TText>
-               </TView>
+              <TView style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Tag size={12} color={colors.textSecondary} />
+                <TText variant="caption" style={{ marginLeft: 6, fontWeight: '600' }}>Stock: {(p as any).currentStock || '0'}</TText>
+              </TView>
+              <TView style={[styles.statusBadge, { backgroundColor: p.isactive ? COLORS.success + '15' : COLORS.danger + '15' }]}>
+                <TText style={{ fontSize: 10, fontWeight: '900', color: p.isactive ? COLORS.success : COLORS.danger }}>{p.isactive ? 'Active' : 'InActive'}</TText>
+              </TView>
             </TView>
           </MotiView>
         ))}
@@ -226,40 +252,45 @@ const MobileProductManagement = () => {
       {/* Product Modal */}
       <Modal visible={showForm} animationType="slide">
         <TView style={{ flex: 1, backgroundColor: colors.background }}>
-           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-             <TText variant="subtitle">{editingProduct ? 'Update Product' : 'Add New Product'}</TText>
-             <TouchableOpacity onPress={() => setShowForm(false)}><X size={24} color={colors.text} /></TouchableOpacity>
-           </View>
-           <ScrollView contentContainerStyle={{ padding: 20 }}>
-              <TText style={styles.formSectionTitle}>PRODUCT DETAILS</TText>
-              <FormField label="Product Name" value={formData.productname} onChange={(v:any)=>setFormData({...formData, productname:v})} placeholder="e.g. 50W LED Driver" icon={Package} />
-              <TView style={{ flexDirection: 'row', gap: 16 }}>
-                <View style={{ flex: 1 }}><FormField label="HSN Code" value={formData.hsn} onChange={(v:any)=>setFormData({...formData, hsn:v})} placeholder="8504..." icon={Hash} /></View>
-                <View style={{ flex: 1 }}><FormField label="Type" value={formData.producttype} onChange={(v:any)=>setFormData({...formData, producttype:v})} placeholder="Normal" icon={Tag} /></View>
-              </TView>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <TText variant="subtitle">{editingProduct ? 'Update Product' : 'Add New Product'}</TText>
+            <TouchableOpacity onPress={() => setShowForm(false)}><X size={24} color={colors.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20 }}>
+            <TText style={styles.formSectionTitle}>PRODUCT DETAILS</TText>
+            <FormField label="Product Name" value={formData.productname} onChange={(v: any) => setFormData({ ...formData, productname: v })} placeholder="e.g. 50W LED Driver" icon={Package} />
+            <TView style={{ flexDirection: 'row', gap: 16 }}>
+              <View style={{ flex: 1 }}><FormField label="HSN Code" value={formData.hsn} onChange={(v: any) => setFormData({ ...formData, hsn: v })} placeholder="8504..." icon={Hash} /></View>
+              <View style={{ flex: 1 }}><FormField label="Type" value={formData.producttype} onChange={(v: any) => setFormData({ ...formData, producttype: v })} placeholder="Normal" icon={Tag} /></View>
+            </TView>
 
-              <TText style={[styles.formSectionTitle, { marginTop: 10 }]}>PRICING & PACKAGING</TText>
-              <TView style={{ flexDirection: 'row', gap: 16 }}>
-                 <View style={{ flex: 1 }}><FormField label="MRP" value={formData.mrp} onChange={(v:any)=>setFormData({...formData, mrp:v})} placeholder="0.00" icon={DollarSign} keyboardType="numeric" /></View>
-                 <View style={{ flex: 1 }}><FormField label="Selling Price" value={formData.sellingprice} onChange={(v:any)=>setFormData({...formData, sellingprice:v})} placeholder="0.00" icon={ShoppingBag} keyboardType="numeric" /></View>
-              </TView>
-              <TView style={{ flexDirection: 'row', gap: 16 }}>
-                 <View style={{ flex: 1 }}><FormField label="Pieces per Box" value={formData.incase} onChange={(v:any)=>setFormData({...formData, incase:v})} placeholder="Qty in case" icon={Box} keyboardType="numeric" /></View>
-                 <View style={{ flex: 1 }}><FormField label="Opening Stock" value={formData.pieces} onChange={(v:any)=>setFormData({...formData, pieces:v})} placeholder="Initial count" icon={Tag} keyboardType="numeric" /></View>
-              </TView>
+            <TText style={[styles.formSectionTitle, { marginTop: 10 }]}>PRICING & PACKAGING</TText>
+            <FormField label="Purchase Order Price" value={formData.purchaseprice} onChange={(v: any) => setFormData({ ...formData, purchaseprice: v })} placeholder="0.00" icon={DollarSign} keyboardType="numeric" />
+            <TView style={{ flexDirection: 'row', gap: 16 }}>
+              <View style={{ flex: 1 }}><FormField label="MRP" value={formData.mrp} onChange={(v: any) => setFormData({ ...formData, mrp: v })} placeholder="0.00" icon={DollarSign} keyboardType="numeric" /></View>
+              <View style={{ flex: 1 }}><FormField label="Selling Price" value={formData.sellingprice} onChange={(v: any) => setFormData({ ...formData, sellingprice: v })} placeholder="0.00" icon={ShoppingBag} keyboardType="numeric" /></View>
+            </TView>
+            <TView style={{ flexDirection: 'row', gap: 16 }}>
+              <View style={{ flex: 1 }}><FormField label="InCase" value={formData.incase} onChange={(v: any) => setFormData({ ...formData, incase: v })} placeholder="Qty in case" icon={Box} keyboardType="numeric" /></View>
+              <View style={{ flex: 1 }}><FormField label="Pieces per box" value={formData.piecesinbox} onChange={(v: any) => setFormData({ ...formData, piecesinbox: v })} placeholder="Qty in box" icon={Package} keyboardType="numeric" /></View>
+            </TView>
+            <TView style={{ flexDirection: 'row', gap: 16 }}>
+              <View style={{ flex: 1 }}><FormField label="Opening Stock" value={formData.pieces} onChange={(v: any) => setFormData({ ...formData, pieces: v })} placeholder="Initial count" icon={Tag} keyboardType="numeric" disabled={true} /></View>
+              <View style={{ flex: 1 }}></View>
+            </TView>
 
-              <Button 
-                title={editingProduct ? "Update Catalog" : "Add Product"} 
-                onPress={handleSave} 
-                style={{ marginTop: 20, height: 50 }} 
-                loading={loading}
-              />
-              <View style={{ height: 40 }} />
-           </ScrollView>
+            <Button
+              title={editingProduct ? "Update Product" : "Add Product"}
+              onPress={handleSave}
+              style={{ marginTop: 20, height: 50 }}
+              loading={loading}
+            />
+            <View style={{ height: 40 }} />
+          </ScrollView>
         </TView>
       </Modal>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={() => {
           setEditingProduct(null);
           resetForm();

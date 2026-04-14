@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, View, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { AlertCircle, ChevronLeft, Hash, Info, Save } from 'lucide-react-native';
 import { MotiView } from 'moti';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { Button } from '../../../components/Button';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { Hash, ChevronLeft, Save, Info, AlertCircle } from 'lucide-react-native';
-import { useNotifications } from '../../../components/NotificationProvider';
+import React, { useCallback, useEffect, useState } from 'react';
+import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';
+import { Button } from '../../../components/Button';
+import { useNotifications } from '../../../components/NotificationProvider';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { db } from '../../../services/supabase';
+import { COLORS, RADIUS } from '../../../theme';
 
 const ConfigField = ({ label, placeholder, value, onChangeText, keyboardType = 'default', editable = true }: any) => {
   const { colors, isDark } = useTheme();
@@ -16,17 +16,17 @@ const ConfigField = ({ label, placeholder, value, onChangeText, keyboardType = '
     <TView style={styles.fieldGroup}>
       <TText variant="caption" style={[styles.fieldLabel, { color: isDark ? 'rgba(255,255,255,0.5)' : 'gray', opacity: editable ? 1 : 0.6 }]}>{label}</TText>
       <TView style={[
-        styles.inputContainer, 
-        { 
+        styles.inputContainer,
+        {
           backgroundColor: editable ? 'transparent' : 'rgba(0,0,0,0.05)',
           borderWidth: 1,
           borderColor: isDark ? 'rgba(129, 140, 248, 0.2)' : colors.border,
         }
       ]}>
-        <TextInput 
-          placeholder={placeholder} 
+        <TextInput
+          placeholder={placeholder}
           placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#999'}
-          style={[styles.input, { color: editable ? colors.text : colors.textSecondary }]} 
+          style={[styles.input, { color: editable ? colors.text : colors.textSecondary }]}
           value={value}
           onChangeText={onChangeText}
           keyboardType={keyboardType}
@@ -57,32 +57,46 @@ export default function BillSeries() {
       const data = await db.billing.getAll();
       setHasTransactions(data.length > 0);
     } catch (error) {
-       console.error("Failed to check transactions:", error);
+      console.error("Failed to check transactions:", error);
     }
   }, []);
 
   useEffect(() => {
     checkTransactions();
-  }, [checkTransactions]);
-
-  // Sync local state when config changes (e.g. after refresh)
-  useEffect(() => {
+    // Initialize exactly once on mount
     setLocalConfig({
       prefix: config.billSeriesText,
       delimiter: config.billSeriesDelimiter,
       startingNumber: config.billSeriesNumber,
     });
-  }, [config]);
+  }, []);
+
+  // Sync only when explicitly refreshed or config changes meaningfully (and no local dirtiness)
+  useEffect(() => {
+    if (!refreshing) return; // Only sync back if we just finished a refresh
+    setLocalConfig({
+      prefix: config.billSeriesText,
+      delimiter: config.billSeriesDelimiter,
+      startingNumber: config.billSeriesNumber,
+    });
+  }, [config, refreshing]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([refreshConfig(), checkTransactions()]);
+    // Refreshing state will trigger the sync useEffect
     setRefreshing(false);
   }, [refreshConfig, checkTransactions]);
 
   // Calculate live preview
-  const nextNumber = (parseInt(localConfig.startingNumber) + parseInt(config.billSeriesCount)).toString().padStart(3, '0');
-  const previewText = `${localConfig.prefix}${localConfig.delimiter}${nextNumber}`;
+  const getPreview = () => {
+    const startNum = localConfig.startingNumber || '';
+    const currentCount = parseInt(config.billSeriesCount) || 0;
+    const nextCount = (currentCount + 1).toString().padStart(2, '0');
+    return `${localConfig.prefix}${localConfig.delimiter}${startNum}${localConfig.delimiter}${nextCount}`;
+  };
+
+  const previewText = getPreview();
 
   const handleSave = async () => {
     if (hasTransactions) {
@@ -127,39 +141,39 @@ export default function BillSeries() {
         <TView style={{ width: 40 }} />
       </TView>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />
         }
       >
-        
+
         {/* Live Preview Card */}
-        <MotiView 
+        <MotiView
           from={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           style={[styles.previewCard, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '30' }]}
         >
           <TView style={styles.previewHeader}>
-             <Hash size={16} color={COLORS.primary} />
-             <TText style={styles.previewTitle}>LIVE PREVIEW</TText>
+            <Hash size={16} color={COLORS.primary} />
+            <TText style={styles.previewTitle}>LIVE PREVIEW</TText>
           </TView>
           <TText style={styles.previewValue}>{previewText}</TText>
           <TText variant="caption" style={styles.previewNote}>This is how your next invoice number will appear.</TText>
         </MotiView>
 
-        <MotiView 
+        <MotiView
           from={{ opacity: 0, translateY: 30 }}
           animate={{ opacity: 1, translateY: 0 }}
           style={[
-            styles.configCard, 
-            { 
+            styles.configCard,
+            {
               backgroundColor: 'transparent',
               borderWidth: 1.5,
               borderColor: isDark ? 'rgba(129, 140, 248, 0.4)' : colors.border
@@ -167,37 +181,37 @@ export default function BillSeries() {
           ]}
         >
           <TText variant="subtitle" style={styles.subHeader}>Series Parts</TText>
-          
-          <ConfigField 
-            label="PREFIX TEXT" 
-            placeholder="Ex: INV" 
-            value={localConfig.prefix} 
-            onChangeText={(v: string) => setLocalConfig({ ...localConfig, prefix: v })} 
-            editable={!hasTransactions}
-          />
-          
-          <ConfigField 
-            label="DELIMITER" 
-            placeholder="/" 
-            value={localConfig.delimiter} 
-            onChangeText={(v: string) => setLocalConfig({ ...localConfig, delimiter: v })} 
-            editable={!hasTransactions}
-          />
-          
-          <ConfigField 
-            label="STARTING NUMBER" 
-            placeholder="100" 
-            keyboardType="numeric"
-            value={localConfig.startingNumber} 
-            onChangeText={(v: string) => setLocalConfig({ ...localConfig, startingNumber: v })} 
+
+          <ConfigField
+            label="PREFIX TEXT"
+            placeholder="Ex: INV"
+            value={localConfig.prefix}
+            onChangeText={(v: string) => setLocalConfig({ ...localConfig, prefix: v })}
             editable={!hasTransactions}
           />
 
-          <ConfigField 
-            label="SEQUENCE TRACKER" 
-            placeholder="0" 
+          <ConfigField
+            label="DELIMITER"
+            placeholder="/"
+            value={localConfig.delimiter}
+            onChangeText={(v: string) => setLocalConfig({ ...localConfig, delimiter: v })}
+            editable={!hasTransactions}
+          />
+
+          <ConfigField
+            label="STARTING NUMBER"
+            placeholder="100"
             keyboardType="numeric"
-            value={config.billSeriesCount.toString()} 
+            value={localConfig.startingNumber}
+            onChangeText={(v: string) => setLocalConfig({ ...localConfig, startingNumber: v })}
+            editable={!hasTransactions}
+          />
+
+          <ConfigField
+            label="SEQUENCE TRACKER"
+            placeholder="0"
+            keyboardType="numeric"
+            value={config.billSeriesCount.toString().padStart(2, '0')}
             editable={false}
           />
 
@@ -206,8 +220,8 @@ export default function BillSeries() {
             <TView style={{ flex: 1, marginLeft: 12 }}>
               <TText style={{ fontSize: 12, fontWeight: '700' }}>Sequence Tracker</TText>
               <TText style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                Current usage count is <TText style={{ fontWeight: '900', color: COLORS.primary }}>{config.billSeriesCount}</TText>. 
-                Final bill number is calculated as Start Number + Count.
+                Current usage count is <TText style={{ fontWeight: '900', color: COLORS.primary }}>{config.billSeriesCount}</TText>.
+                Final bill number is formed by joining: Prefix + Start Number + Sequence.
               </TText>
             </TView>
           </TView>
@@ -217,15 +231,15 @@ export default function BillSeries() {
         <TView style={styles.warningBox}>
           <AlertCircle size={20} color={hasTransactions ? COLORS.danger : COLORS.warning} />
           <TText style={[styles.warningText, hasTransactions && { color: COLORS.danger }]}>
-            {hasTransactions 
+            {hasTransactions
               ? "Bill series editing is disabled because transactions already exist. Clear all data to modify the series order."
               : "Changing the series format mid-cycle may cause issues with historical record searching."}
           </TText>
         </TView>
 
-        <Button 
-          title={hasTransactions ? "Editing Locked" : "Save Configuration"} 
-          onPress={handleSave} 
+        <Button
+          title={hasTransactions ? "Editing Locked" : "Save Configuration"}
+          onPress={handleSave}
           loading={loading}
           disabled={hasTransactions}
           icon={<Save size={18} color="#fff" />}

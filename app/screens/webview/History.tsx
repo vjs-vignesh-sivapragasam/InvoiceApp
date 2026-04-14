@@ -72,6 +72,7 @@ export const History = () => {
           <TText style={[styles.col, { flex: 2 }]} variant="caption">Client Name</TText>
           <TText style={styles.col} variant="caption">Amount</TText>
           <TText style={styles.col} variant="caption">Date</TText>
+          <TText style={styles.col} variant="caption">Payment</TText>
           <TText style={styles.col} variant="caption">Status</TText>
           <View style={{ width: 80 }} />
         </View>
@@ -85,11 +86,16 @@ export const History = () => {
               </TView>
               <TText style={{ marginLeft: 12 }}>{row.clientdetails?.clientname || 'Deleted Client'}</TText>
             </View>
-            <TText style={styles.col} variant="body">${row.totalamount?.toFixed(2)}</TText>
+            <TText style={styles.col} variant="body">₹{row.totalamount?.toLocaleString()}</TText>
             <TText style={styles.col} variant="body">{row.billdate}</TText>
             <View style={styles.col}>
-              <View style={[styles.statusBadge, { backgroundColor: (row.isactive ? COLORS.accent : COLORS.warning) + '20' }]}>
-                <TText style={{ fontSize: 11, color: row.isactive ? COLORS.accent : COLORS.warning, fontWeight: '700' }}>
+               <TText style={{ fontSize: 13, fontWeight: '700', color: row.paymentmethod?.toUpperCase() === 'CREDIT' ? COLORS.danger : COLORS.primary }}>
+                  {row.paymentmethod || 'CASH'}
+               </TText>
+            </View>
+            <View style={styles.col}>
+              <View style={[styles.statusBadge, { backgroundColor: (row.isactive ? COLORS.success : COLORS.warning) + '20' }]}>
+                <TText style={{ fontSize: 11, color: row.isactive ? COLORS.success : COLORS.warning, fontWeight: '700' }}>
                   {row.isactive ? 'Active' : 'Void'}
                 </TText>
               </View>

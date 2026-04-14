@@ -31,7 +31,7 @@ CREATE TABLE UserLoginDetails (
     ProfilePicture TEXT, -- URL
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     IsLocked BOOLEAN DEFAULT FALSE,
-    Optional1 TEXT,
+    Optional1 TEXT, -- Business Branding Name
     Optional2 TEXT,
     Optional3 TEXT
 );
@@ -63,17 +63,17 @@ CREATE TABLE Products (
     ProductID SERIAL PRIMARY KEY,
     ProductName VARCHAR(255) NOT NULL,
     ProductType VARCHAR(100),
-    InCase INTEGER, -- BOX configuration
-    Pieces INTEGER,
+    InCase INTEGER,           -- BOX configuration / inner units
+    Pieces INTEGER,           -- Units per Box (mapped to piecesinbox in UI)
     HSN VARCHAR(20),
-    PurchaseOrder VARCHAR(100),
+    PurchaseOrder VARCHAR(100), -- Purchase Price
     SellingPrice DECIMAL(15, 2),
     MRP DECIMAL(15, 2),
     DiscPercentage DECIMAL(5, 2) DEFAULT 0,
     DiscAmount DECIMAL(15, 2) DEFAULT 0,
     IsActive BOOLEAN DEFAULT TRUE,
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Optional1 TEXT,
+    Optional1 TEXT,           -- Historically Opening Stock, now derived from logs
     Optional2 TEXT,
     Optional3 TEXT
 );
@@ -107,14 +107,14 @@ CREATE TABLE BillingTransaction (
     Optional3 TEXT
 );
 
--- Table 6: Inventory Details (Stock Movement Log)
+-- Table 6: Inventory Details (Stock Movement Log) - SOURCE OF TRUTH FOR STOCK
 CREATE TABLE InventoryDetails (
     InventoryID     SERIAL PRIMARY KEY,
     ProductID       INTEGER NOT NULL REFERENCES Products(ProductID) ON DELETE CASCADE,
     MovementType    VARCHAR(20) NOT NULL CHECK (MovementType IN ('restock','sale','adjustment','return')),
-    QuantityMoved   INTEGER NOT NULL,                        -- always positive; direction from MovementType
+    QuantityMoved   INTEGER NOT NULL,                        -- Units count
     PreviousStock   INTEGER NOT NULL DEFAULT 0,
-    NewStock        INTEGER NOT NULL DEFAULT 0,
+    NewStock        INTEGER NOT NULL DEFAULT 0,              -- Final source of truth
     ReferenceNo     VARCHAR(100),                            -- BillNo / PO Ref / manual ref
     Notes           TEXT,
     CreatedBy       INTEGER REFERENCES UserLoginDetails(UserID),
@@ -130,8 +130,8 @@ CREATE TABLE BillSeries (
     UserID INTEGER REFERENCES UserLoginDetails(UserID) UNIQUE,
     Prefix VARCHAR(20) DEFAULT 'INV',
     Delimiter VARCHAR(5) DEFAULT '/',
-    StartingNumber INTEGER DEFAULT 1,
-    CurrentCount INTEGER DEFAULT 0,
+    StartingNumber VARCHAR(50) DEFAULT '2026', -- Usually Year or Branch Code
+    CurrentCount INTEGER DEFAULT 0,           -- Auto-incrementing sequence
     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

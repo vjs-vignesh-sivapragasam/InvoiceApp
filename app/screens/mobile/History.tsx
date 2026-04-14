@@ -280,6 +280,14 @@ export default function HistoryScreen() {
             <TText variant="caption" style={{ fontSize: 10 }}>BILL DATE</TText>
             <TText style={{ fontWeight: '700', fontSize: 13 }}>{item.billdate || '2026-04-11'}</TText>
          </TView>
+         <TView style={{ flex: 1, alignItems: 'center' }}>
+            <TText variant="caption" style={{ fontSize: 10 }}>PAYMENT</TText>
+            <TView style={[styles.paymentBadge, { backgroundColor: item.paymentmethod?.toUpperCase() === 'CREDIT' ? COLORS.danger + '10' : (isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9') }]}>
+               <TText style={{ fontSize: 10, fontWeight: '800', color: item.paymentmethod?.toUpperCase() === 'CREDIT' ? COLORS.danger : COLORS.primary }}>
+                  {item.paymentmethod || 'CASH'}
+               </TText>
+            </TView>
+         </TView>
          <TView style={{ alignItems: 'flex-end' }}>
             <TText style={{ fontWeight: '900', fontSize: 18, color: COLORS.primary }}>₹{item.totalamount?.toLocaleString()}</TText>
             <StatusBadge isactive={item.isactive} />
@@ -424,6 +432,7 @@ const styles = StyleSheet.create({
   downloadBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   divider: { height: 1, marginVertical: 15 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  paymentBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 },
   empty: { alignItems: 'center', marginTop: 100 },
   modalHeader: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: '#eee' },

@@ -24,7 +24,8 @@ import { WebLayout } from './WebLayout';
 interface Product {
   productid: number;
   productname: string;
-  pieces: number;
+  pieces: number; // Bound to 'pieces' column (Pieces per box)
+  optional1?: string; // Bound to 'optional1' column (Stock Balance)
   hsn?: string;
   incase?: number;
   sellingprice?: number;
@@ -120,13 +121,13 @@ const ProductCard = ({
         <Package size={24} color={COLORS.primary} />
       </TView>
       <TView style={[styles.stockBadge, {
-        backgroundColor: item.pieces < 10 ? COLORS.danger + '15' : COLORS.success + '15'
+        backgroundColor: parseInt(item.optional1 || '0') < 10 ? COLORS.danger + '15' : COLORS.success + '15'
       }]}>
         <TText style={{
-          color: item.pieces < 10 ? COLORS.danger : COLORS.success,
+          color: parseInt(item.optional1 || '0') < 10 ? COLORS.danger : COLORS.success,
           fontWeight: '900', fontSize: 12
         }}>
-          {item.pieces} IN STOCK
+          {item.optional1 || '0'} IN STOCK
         </TText>
       </TView>
     </View>
@@ -136,7 +137,7 @@ const ProductCard = ({
       HSN: {item.hsn || '---'} • Box Qty: {item.incase || '-'}
     </TText>
 
-    {item.pieces < 10 && (
+    {parseInt(item.optional1 || '0') < 10 && (
       <View style={styles.alertBox}>
         <AlertTriangle size={14} color={COLORS.danger} />
         <TText style={{ color: COLORS.danger, fontSize: 11, fontWeight: '700', marginLeft: 6 }}>
@@ -218,28 +219,26 @@ export const Inventory = () => {
     const amount = parseInt(adjustment);
     if (isNaN(amount) || amount <= 0) return showToast('Enter a valid quantity', 'error');
 
-    const product = products.find(p => p.productid === id);
-    if (!product) return;
-
-    const newStock = type === 'add' ? product.pieces + amount : product.pieces - amount;
+    const currentStock = parseInt(product.optional1 || '0');
+    const newStock = type === 'add' ? currentStock + amount : currentStock - amount;
     if (newStock < 0) return showToast('Insufficient stock', 'error');
 
     const movementtype = type === 'add' ? 'restock' : 'sale';
 
     try {
       setUpdatingId(id);
-      // 1. Update products.pieces
-      await db.products.update(id, { pieces: newStock });
-      // 2. Log the movement in inventorydetails
+      // 1. Update optional1
+      await db.products.update(id, { optional1: newStock.toString() });
+      // 2. Log the movement
       await db.inventory.logMovement({
         productid: id,
         movementtype,
         quantitymoved: amount,
-        previousstock: product.pieces,
+        previousstock: currentStock,
         newstock: newStock,
       });
 
-      setProducts(prev => prev.map(p => p.productid === id ? { ...p, pieces: newStock } : p));
+      setProducts(prev => prev.map(p => p.productid === id ? { ...p, optional1: newStock.toString() } : p));
       // Invalidate log cache so next visit refetches
       setLog([]);
       setAdjustment('');

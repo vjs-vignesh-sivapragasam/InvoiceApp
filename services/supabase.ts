@@ -132,6 +132,29 @@ export const db = {
         .select();
       if (error) { console.error('Supabase update (product) error:', error); throw error; }
       return data[0];
+    },
+    async getWithStock() {
+      // 1. Get all products
+      const { data: products, error: pError } = await supabase.from('products').select('*').order('productname', { ascending: true });
+      if (pError) throw pError;
+
+      // 2. Get the latest log entry for each product
+      // We'll fetch all last movements and merge client-side for simplicity in this version
+      const { data: logs, error: lError } = await supabase
+        .from('inventorydetails')
+        .select('productid, newstock, createddate')
+        .order('createddate', { ascending: false });
+      
+      if (lError) throw lError;
+
+      // Map products to their latest stock
+      return products.map(p => {
+        const lastLog = logs.find(l => l.productid === p.productid);
+        return {
+          ...p,
+          currentStock: lastLog ? parseInt(lastLog.newstock) : 0
+        };
+      });
     }
   },
 
@@ -224,7 +247,7 @@ export const db = {
         .select(`
           *,
           products (
-            productid, productname, producttype, hsn, incase, pieces, sellingprice, isactive
+            productid, productname, producttype, hsn, incase, pieces, sellingprice, isactive, purchaseorder, optional1
           )
         `)
         .order('createddate', { ascending: false });
@@ -237,7 +260,7 @@ export const db = {
         .from('inventorydetails')
         .select(`
           *,
-          products (productid, productname, hsn, incase, pieces)
+          products (productid, productname, hsn, incase, pieces, purchaseorder, optional1)
         `)
         .eq('productid', productId)
         .order('createddate', { ascending: false });

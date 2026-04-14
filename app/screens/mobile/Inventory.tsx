@@ -36,7 +36,7 @@ export default function MobileInventory() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [pData, lData] = await Promise.all([db.products.getAll(), db.inventory.getAll()]);
+      const [pData, lData] = await Promise.all([db.products.getWithStock(), db.inventory.getAll()]);
       setProducts(pData);
       setLog(lData);
     } catch { showToast('Sync failed', 'error'); } 
@@ -50,28 +50,30 @@ export default function MobileInventory() {
     if (isNaN(amount) || amount <= 0) return showToast('Invalid quantity', 'error');
 
     const product = products.find(p => p.productid === id);
-    if (!product) return;
+    if (!product) return showToast('Product not found', 'error');
 
-    const newStock = type === 'add' ? product.pieces + amount : product.pieces - amount;
+    const currentStock = product.currentStock || 0;
+    const newStock = type === 'add' ? currentStock + amount : currentStock - amount;
     if (newStock < 0) return showToast('Insufficient stock', 'error');
 
     try {
       setUpdatingId(id);
-      await db.products.update(id, { pieces: newStock });
+      
+      // We log the movement - the inventory log is the source of truth
       await db.inventory.logMovement({
         productid: id,
         movementtype: type === 'add' ? 'restock' : 'sale',
         quantitymoved: amount,
-        previousstock: product.pieces,
+        previousstock: currentStock,
         newstock: newStock,
         notes: `Manual ${type === 'add' ? 'Addition' : 'Removal'}`
       });
 
-      setProducts(prev => prev.map(p => p.productid === id ? { ...p, pieces: newStock } : p));
+      setProducts(prev => prev.map(p => p.productid === id ? { ...p, currentStock: newStock } : p));
       setAdjustment('');
       setUpdatingId(null);
       showToast('Inventory updated!');
-      fetchData(); // Refresh logs
+      fetchData(); // Refresh logs to get accurate history
     } catch { showToast('Update failed', 'error'); } 
     finally { setUpdatingId(null); }
   };
@@ -118,13 +120,13 @@ export default function MobileInventory() {
                        <TText style={{ fontWeight: '800', fontSize: 16 }}>{item.productname}</TText>
                        <TText variant="caption">HSN: {item.hsn || '-'} • BOX: {item.incase || '0'}</TText>
                     </TView>
-                    <TView style={[styles.stockValueBox, { backgroundColor: item.pieces < 10 ? COLORS.danger + '15' : COLORS.success + '15' }]}>
-                       <TText style={{ fontWeight: '900', color: item.pieces < 10 ? COLORS.danger : COLORS.success }}>{item.pieces}</TText>
-                       <TText style={{ fontSize: 8, fontWeight: '800', color: item.pieces < 10 ? COLORS.danger : COLORS.success }}>UNITS</TText>
+                    <TView style={[styles.stockValueBox, { backgroundColor: (item.currentStock || 0) < 10 ? COLORS.danger + '15' : COLORS.success + '15' }]}>
+                       <TText style={{ fontWeight: '900', color: (item.currentStock || 0) < 10 ? COLORS.danger : COLORS.success }}>{item.currentStock || 0}</TText>
+                       <TText style={{ fontSize: 8, fontWeight: '800', color: (item.currentStock || 0) < 10 ? COLORS.danger : COLORS.success }}>UNITS</TText>
                     </TView>
                   </TView>
 
-                  {item.pieces < 10 && (
+                  {(item.currentStock || 0) < 10 && (
                     <TView style={styles.alertBar}>
                        <AlertTriangle size={12} color={COLORS.danger} />
                        <TText style={{ color: COLORS.danger, fontSize: 10, fontWeight: '800', marginLeft: 6 }}>CRITICAL LOW STOCK LEVEL</TText>
