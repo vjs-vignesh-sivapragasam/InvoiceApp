@@ -1,16 +1,50 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 
-interface InvoiceData {
-  business: any;
-  client: any;
-  billNo: string;
-  billDate: string;
-  items: any[];
-  summary: any;
+interface InvoiceItem {
+  name: string;
+  hsn: string;
+  box: string | number;
+  pieces: string | number;
+  price: string | number;
+  disc?: string;
+  cgst: string | number;
+  sgst: string | number;
+  rate: string | number;
+  amount: string | number;
 }
 
-export const Design1: React.FC<{ data: any }> = ({ data }) => {
+interface InvoiceData {
+  business: {
+    name?: string;
+    address?: string;
+    address2?: string;
+    mobile?: string;
+    gstin?: string;
+    bankName?: string;
+    accountNo?: string;
+    ifsc?: string;
+  };
+  client: {
+    clientname?: string;
+    addressline1?: string;
+    addressline2?: string;
+    mobile?: string;
+    gstin?: string;
+  };
+  billNo: string;
+  billDate: string;
+  items: InvoiceItem[];
+  summary: {
+    totalQty: string | number;
+    totalAmount: string | number;
+    beforeTax: string | number;
+    afterTax: string | number;
+  };
+  docType?: 'quotation' | 'invoice';
+}
+
+export const Design1: React.FC<{ data: InvoiceData }> = ({ data }) => {
   const { business, client, billNo, billDate, items, summary, docType } = data;
   const isQuotation = docType === 'quotation';
 

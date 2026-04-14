@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useColorScheme, View, Text, ViewProps, TextProps, StyleSheet } from 'react-native';
+import { useColorScheme, View, Text, ViewProps, TextProps, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme';
 
 type ThemeType = 'light' | 'dark';
@@ -44,7 +44,7 @@ export const TView: React.FC<ViewProps & { variant?: 'background' | 'surface' | 
 }) => {
   const { colors } = useTheme();
   
-  const getVariantStyle = () => {
+  const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case 'background': return { backgroundColor: colors.background };
       case 'surface': return { backgroundColor: colors.surface };
@@ -69,7 +69,7 @@ export const TText: React.FC<TextProps & { variant?: 'title' | 'subtitle' | 'cap
 }) => {
   const { colors } = useTheme();
   
-  const getVariantStyle = () => {
+  const getVariantStyle = (): TextStyle => {
     switch (variant) {
       case 'title': return { fontSize: 24, fontWeight: '700', color: colors.text };
       case 'subtitle': return { fontSize: 18, fontWeight: '600', color: colors.text };

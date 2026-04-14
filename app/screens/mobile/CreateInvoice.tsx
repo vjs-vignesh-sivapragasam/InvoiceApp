@@ -7,23 +7,30 @@ import { Button } from '../../../components/Button';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
 import { ChevronLeft, Plus, Trash2, Calendar, User, Package } from 'lucide-react-native';
 
+interface InvoiceItem {
+  id: string;
+  name: string;
+  quantity: string;
+  price: string;
+}
+
 export default function CreateInvoiceScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const [items, setItems] = useState([{ id: '1', name: '', quantity: '1', price: '0' }]);
+  const [items, setItems] = useState<InvoiceItem[]>([{ id: '1', name: '', quantity: '1', price: '0' }]);
   const [client, setClient] = useState('');
 
   const addItem = () => {
     setItems([...items, { id: Math.random().toString(), name: '', quantity: '1', price: '0' }]);
   };
 
-  const removeItem = (id) => {
+  const removeItem = (id: string) => {
     if (items.length > 1) {
       setItems(items.filter(item => item.id !== id));
     }
   };
 
-  const updateItem = (id, field, value) => {
+  const updateItem = (id: string, field: keyof InvoiceItem, value: string) => {
     setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
