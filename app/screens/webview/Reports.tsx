@@ -9,7 +9,7 @@ import {
   TrendingUp,
   Users
 } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,

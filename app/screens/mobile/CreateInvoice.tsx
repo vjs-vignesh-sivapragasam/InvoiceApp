@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView, AnimatePresence } from '@/components/MotiShim';
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { Button } from '../../../components/Button';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';

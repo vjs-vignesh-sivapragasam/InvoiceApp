@@ -20,7 +20,7 @@ import {
   User as UserIcon,
   X
 } from 'lucide-react-native';
-import { AnimatePresence, MotiView } from 'moti';
+import { AnimatePresence, MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';

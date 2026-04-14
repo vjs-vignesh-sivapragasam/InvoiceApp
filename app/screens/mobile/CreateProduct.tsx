@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Box, ChevronLeft, DollarSign, Edit2, Hash, Package, Plus, Search, ShoppingBag, Tag, X } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View } from 'react-native';
 import { Button } from '../../../components/Button';

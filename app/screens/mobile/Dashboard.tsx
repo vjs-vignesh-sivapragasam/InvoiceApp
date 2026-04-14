@@ -15,7 +15,7 @@ import {
    Zap,
    AlertTriangle
 } from 'lucide-react-native';
-import { AnimatePresence, MotiView } from 'moti';
+import { AnimatePresence, MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, RefreshControl, SafeAreaView, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';

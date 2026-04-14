@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { AlertCircle, ChevronLeft, Hash, Info, Save } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';

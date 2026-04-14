@@ -8,7 +8,7 @@ import {
   Users,
   Zap
 } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';

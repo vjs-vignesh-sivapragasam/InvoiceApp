@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, View, RefreshControl, Dimensions, SafeAreaView, Platform } from 'react-native';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView, AnimatePresence } from '@/components/MotiShim';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
   Package, Plus, Minus, Search, AlertTriangle, 

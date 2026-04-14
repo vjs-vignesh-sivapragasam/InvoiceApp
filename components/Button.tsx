@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { COLORS, RADIUS, SPACING } from '../theme';

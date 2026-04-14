@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, View, Share, Platform, Dimensions, SafeAreaView, RefreshControl } from 'react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';

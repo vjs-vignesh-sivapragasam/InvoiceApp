@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, View, RefreshControl, Platform, SafeAreaView, Modal, ScrollView } from 'react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
 import { Search, Filter, ChevronRight, ChevronLeft, CheckCircle2, Clock, AlertCircle, FileText, Download, X, MoreHorizontal, Eye } from 'lucide-react-native';

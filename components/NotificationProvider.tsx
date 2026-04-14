@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView, AnimatePresence } from '@/components/MotiShim';
 import { TText, useTheme } from './ThemedUI';
 import { COLORS, RADIUS, SHADOWS } from '../theme';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';

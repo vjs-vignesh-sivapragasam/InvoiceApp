@@ -11,7 +11,7 @@ import {
   Settings as SettingsIcon,
   UserPlus
 } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import React from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';
