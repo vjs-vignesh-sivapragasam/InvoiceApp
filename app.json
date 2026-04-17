@@ -41,7 +41,27 @@
             "newArchEnabled": false
           }
         }
-      ]
+      ],
+      "expo-build-properties",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "networkSecurityConfig": "@xml/network_security_config",
+            "minSdkVersion": 26,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ],
+      [
+        "expo-dev-client",
+        {
+          "launchMode": "most-recent"
+        }
+      ],
     ],
     "experiments": {
       "typedRoutes": true
