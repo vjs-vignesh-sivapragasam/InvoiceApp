@@ -200,13 +200,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    height: 100,
-    paddingTop: 50,
+    height: 60,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
+    marginTop: 40
   },
   backButton: {
     padding: 8,

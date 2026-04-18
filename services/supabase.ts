@@ -397,6 +397,61 @@ export const db = {
         console.error('Database Healthcheck Failed:', err);
         return { connected: false, latency: '0ms', usedMB: 0, totalMB: 500, percentUsed: 0 };
       }
+    },
+    async generateBackup() {
+      console.log('📦 Starting Full Database Backup (SQL Mode)...');
+      const tables = [
+        'clientdetails',
+        'products',
+        'billingtransaction',
+        'billseries',
+        'inventorydetails',
+        'userlogindetails',
+        'userroles'
+      ];
+      
+      const backupData: any = {
+        backup_date: new Date().toISOString(),
+        version: '1.0.0',
+        content: {},
+        sql: '-- InvoiceApp Database Backup\n' + `-- Generated: ${new Date().toISOString()}\n\n`
+      };
+
+      try {
+        const results = await Promise.all(
+          tables.map(table => supabase.from(table).select('*'))
+        );
+
+        results.forEach((res, index) => {
+          const tableName = tables[index];
+          if (res.error) {
+            console.error(`Error backing up ${tableName}:`, res.error);
+          } else {
+            backupData.content[tableName] = res.data;
+            
+            if (res.data && res.data.length > 0) {
+              const columns = Object.keys(res.data[0]);
+              backupData.sql += `-- Data for ${tableName}\n`;
+              res.data.forEach((row: any) => {
+                const values = columns.map(col => {
+                  const val = row[col];
+                  if (val === null || val === undefined) return 'NULL';
+                  if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+                  if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+                  return val;
+                });
+                backupData.sql += `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values.join(', ')});\n`;
+              });
+              backupData.sql += '\n';
+            }
+          }
+        });
+
+        return backupData;
+      } catch (err) {
+        console.error('Backup Creation Failed:', err);
+        throw err;
+      }
     }
   }
 };

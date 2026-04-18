@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Eye, Layout, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Modal, Platform, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Modal, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';
 import { Button } from '../../../components/Button';
 import { useNotifications } from '../../../components/NotificationProvider';
-import { Design1 } from '../../../components/templates/Design1';
+import { Design1, InvoiceData } from '../../../components/templates/Design1';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { COLORS, RADIUS } from '../../../theme';
 
@@ -20,7 +20,7 @@ const MobileTemplates = () => {
   const [showPreview, setShowPreview] = useState(false);
 
   // Mock data for previewing Design 1
-  const mockData = {
+  const mockData: InvoiceData = {
     business: {
       name: 'MK AGENCY',
       address: '6, 1st cross, Iyyanar Kovil Street,',
@@ -145,7 +145,7 @@ const MobileTemplates = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: Platform.OS === 'ios' ? 40 : 0 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 8 },
   backBtn: { padding: 8 },
   scrollContent: { padding: 20 },
   card: { borderRadius: RADIUS.xl, padding: 25, marginBottom: 20 },

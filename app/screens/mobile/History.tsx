@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, View, RefreshControl, Platform, SafeAreaView, Modal, ScrollView } from 'react-native';
 import { MotiView } from '@/components/MotiShim';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { Search, Filter, ChevronRight, ChevronLeft, CheckCircle2, Clock, AlertCircle, FileText, Download, X, MoreHorizontal, Eye } from 'lucide-react-native';
-import { db } from '../../../services/supabase';
-import { useRouter } from 'expo-router';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Print from 'expo-print';
+import { useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
+import { ChevronLeft, Download, Eye, FileText, Filter, Search, X } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Design1 } from '../../../components/templates/Design1';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
+import { db } from '../../../services/supabase';
+import { COLORS, RADIUS } from '../../../theme';
 
 const StatusBadge = ({ isactive }: { isactive: boolean }) => {
   const status = isactive ? 'Active' : 'Void';
@@ -40,7 +40,7 @@ export default function HistoryScreen() {
         db.users.getProfile(1)
       ]);
       setTransactions(data);
-      
+
       if (dbProfile) {
         // Map DB fields to application business profile format
         const formattedProfile = {
@@ -236,8 +236,8 @@ export default function HistoryScreen() {
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ delay: index * 40 }}
       style={[
-        styles.invoiceCard, 
-        { 
+        styles.invoiceCard,
+        {
           backgroundColor: 'transparent',
           borderWidth: 1.2,
           borderColor: 'rgba(129, 140, 248, 0.3)',
@@ -245,53 +245,53 @@ export default function HistoryScreen() {
       ]}
     >
       <TView style={styles.cardHeader}>
-         <TView style={styles.typeIcon}>
-            <FileText size={18} color={COLORS.primary} />
-         </TView>
-         <TView style={{ flex: 1, marginLeft: 15 }}>
-            <TText style={{ fontWeight: '800', fontSize: 16 }}>{item.clientdetails?.clientname || 'Walk-in Client'}</TText>
-            <TText variant="caption">{item.billno || `#${item.billingid}`}</TText>
-         </TView>
-          <TView style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity 
-              onPress={() => { setSelectedBill(item); setPreviewVisible(true); }}
-              style={[styles.downloadBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}
-            >
-               <Eye size={18} color={COLORS.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => handleDownloadPDF(item)} 
-              disabled={!!downloading}
-              style={[styles.downloadBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}
-            >
-               {downloading === item.billno ? (
-                 <ActivityIndicator size="small" color={COLORS.primary} />
-               ) : (
-                 <Download size={18} color={COLORS.primary} />
-               )}
-            </TouchableOpacity>
-         </TView>
+        <TView style={styles.typeIcon}>
+          <FileText size={18} color={COLORS.primary} />
+        </TView>
+        <TView style={{ flex: 1, marginLeft: 15 }}>
+          <TText style={{ fontWeight: '800', fontSize: 16 }}>{item.clientdetails?.clientname || 'Walk-in Client'}</TText>
+          <TText variant="caption">{item.billno || `#${item.billingid}`}</TText>
+        </TView>
+        <TView style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => { setSelectedBill(item); setPreviewVisible(true); }}
+            style={[styles.downloadBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}
+          >
+            <Eye size={18} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleDownloadPDF(item)}
+            disabled={!!downloading}
+            style={[styles.downloadBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}
+          >
+            {downloading === item.billno ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Download size={18} color={COLORS.primary} />
+            )}
+          </TouchableOpacity>
+        </TView>
       </TView>
 
       <TView style={[styles.divider, { backgroundColor: colors.border }]} />
 
       <TView style={styles.cardFooter}>
-         <TView>
-            <TText variant="caption" style={{ fontSize: 10 }}>BILL DATE</TText>
-            <TText style={{ fontWeight: '700', fontSize: 13 }}>{item.billdate || '2026-04-11'}</TText>
-         </TView>
-         <TView style={{ flex: 1, alignItems: 'center' }}>
-            <TText variant="caption" style={{ fontSize: 10 }}>PAYMENT</TText>
-            <TView style={[styles.paymentBadge, { backgroundColor: item.paymentmethod?.toUpperCase() === 'CREDIT' ? COLORS.danger + '10' : (isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9') }]}>
-               <TText style={{ fontSize: 10, fontWeight: '800', color: item.paymentmethod?.toUpperCase() === 'CREDIT' ? COLORS.danger : COLORS.primary }}>
-                  {item.paymentmethod || 'CASH'}
-               </TText>
-            </TView>
-         </TView>
-         <TView style={{ alignItems: 'flex-end' }}>
-            <TText style={{ fontWeight: '900', fontSize: 18, color: COLORS.primary }}>₹{item.totalamount?.toLocaleString()}</TText>
-            <StatusBadge isactive={item.isactive} />
-         </TView>
+        <TView>
+          <TText variant="caption" style={{ fontSize: 10 }}>BILL DATE</TText>
+          <TText style={{ fontWeight: '700', fontSize: 13 }}>{item.billdate || '2026-04-11'}</TText>
+        </TView>
+        <TView style={{ flex: 1, alignItems: 'center' }}>
+          <TText variant="caption" style={{ fontSize: 10 }}>PAYMENT</TText>
+          <TView style={[styles.paymentBadge, { backgroundColor: item.paymentmethod?.toUpperCase() === 'CREDIT' ? COLORS.danger + '10' : (isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9') }]}>
+            <TText style={{ fontSize: 10, fontWeight: '800', color: item.paymentmethod?.toUpperCase() === 'CREDIT' ? COLORS.danger : COLORS.primary }}>
+              {item.paymentmethod || 'CASH'}
+            </TText>
+          </TView>
+        </TView>
+        <TView style={{ alignItems: 'flex-end' }}>
+          <TText style={{ fontWeight: '900', fontSize: 18, color: COLORS.primary }}>₹{item.totalamount?.toLocaleString()}</TText>
+          <StatusBadge isactive={item.isactive} />
+        </TView>
       </TView>
     </MotiView>
   );
@@ -322,7 +322,7 @@ export default function HistoryScreen() {
             {search.length > 0 && <TouchableOpacity onPress={() => setSearch('')}><X size={18} color="gray" /></TouchableOpacity>}
           </TView>
           <TouchableOpacity style={[styles.filterBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.2)' }]}>
-             <Filter size={20} color={COLORS.primary} />
+            <Filter size={20} color={COLORS.primary} />
           </TouchableOpacity>
         </TView>
       </TView>
@@ -343,72 +343,72 @@ export default function HistoryScreen() {
 
       <Modal visible={previewVisible} animationType="slide">
         <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-           <TView style={styles.modalHeader}>
-              <TText style={{ fontWeight: '900', color: '#000' }}>INVOICE PREVIEW</TText>
-              <TouchableOpacity onPress={() => setPreviewVisible(false)} style={styles.closeBtn}>
-                 <X size={24} color="#000" />
-              </TouchableOpacity>
-           </TView>
-           <ScrollView>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                 <TView style={{ width: 850 }}>
-                    {selectedBill && (
-                      <Design1 
-                        data={{
-                          business: {
-                            name: businessProfile?.businessName || 'INVOICE APP',
-                            ownerName: businessProfile?.ownerName || '',
-                            address: businessProfile?.address || '',
-                            address2: businessProfile?.address2 || '',
-                            landmark: businessProfile?.landmark || '',
-                            pincode: businessProfile?.pincode || '',
-                            mobile: businessProfile?.mobile || '',
-                            altMobile: businessProfile?.mobile2 || '',
-                            email: businessProfile?.email || '',
-                            gstin: businessProfile?.gstin || '',
-                            bankName: businessProfile?.bankName || '',
-                            accountNo: businessProfile?.accountNo || '',
-                            ifsc: businessProfile?.ifsc || '',
-                          },
-                          client: selectedBill.clientdetails || { clientname: 'Guest Client' },
-                          billNo: selectedBill.billno,
-                          billDate: selectedBill.billdate,
-                          items: [
-                            { 
-                              name: selectedBill.products?.productname || `Goods/Services as per Bill # ${selectedBill.billno}`, 
-                              hsn: selectedBill.products?.hsn || '0000', 
-                              box: selectedBill.box?.toString() || '0', 
-                              pieces: selectedBill.pieces?.toString() || '0', 
-                              price: (selectedBill.rate || 0).toString(), 
-                              disc: selectedBill.disperc ? `${selectedBill.disperc}% - ${selectedBill.discamount?.toFixed(2)}` : '0% - 0.00',
-                              cgst: (selectedBill.cgstamount || 0).toFixed(2), 
-                              sgst: (selectedBill.sgstamount || 0).toFixed(2), 
-                              rate: (selectedBill.rate || 0).toString(), 
-                              amount: selectedBill.totalamount?.toFixed(2)
-                            }
-                          ],
-                          summary: {
-                            totalQty: '1',
-                            beforeTax: (selectedBill.taxableamount || (selectedBill.totalamount - (selectedBill.gstamount || 0))).toFixed(2),
-                            totalAmount: selectedBill.totalamount?.toFixed(2),
-                            afterTax: selectedBill.totalamount?.toFixed(2)
-                          },
-                          docType: 'invoice'
-                        }} 
-                      />
-                    )}
-                 </TView>
-              </ScrollView>
-              <TView style={{ padding: 20 }}>
-                 <TouchableOpacity 
-                   onPress={() => setPreviewVisible(false)} 
-                   style={[styles.closePreviewBtn, { backgroundColor: '#333' }]}
-                 >
-                    <TText style={{ color: '#fff', fontWeight: '800' }}>CLOSE PREVIEW</TText>
-                 </TouchableOpacity>
+          <TView style={styles.modalHeader}>
+            <TText style={{ fontWeight: '900', color: '#000' }}>INVOICE PREVIEW</TText>
+            <TouchableOpacity onPress={() => setPreviewVisible(false)} style={styles.closeBtn}>
+              <X size={24} color="#000" />
+            </TouchableOpacity>
+          </TView>
+          <ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <TView style={{ width: 850 }}>
+                {selectedBill && (
+                  <Design1
+                    data={{
+                      business: {
+                        name: businessProfile?.businessName || 'INVOICE APP',
+                        ownerName: businessProfile?.ownerName || '',
+                        address: businessProfile?.address || '',
+                        address2: businessProfile?.address2 || '',
+                        landmark: businessProfile?.landmark || '',
+                        pincode: businessProfile?.pincode || '',
+                        mobile: businessProfile?.mobile || '',
+                        altMobile: businessProfile?.mobile2 || '',
+                        email: businessProfile?.email || '',
+                        gstin: businessProfile?.gstin || '',
+                        bankName: businessProfile?.bankName || '',
+                        accountNo: businessProfile?.accountNo || '',
+                        ifsc: businessProfile?.ifsc || '',
+                      },
+                      client: selectedBill.clientdetails || { clientname: 'Guest Client' },
+                      billNo: selectedBill.billno,
+                      billDate: selectedBill.billdate,
+                      items: [
+                        {
+                          name: selectedBill.products?.productname || `Goods/Services as per Bill # ${selectedBill.billno}`,
+                          hsn: selectedBill.products?.hsn || '0000',
+                          box: selectedBill.box?.toString() || '0',
+                          pieces: selectedBill.pieces?.toString() || '0',
+                          price: (selectedBill.rate || 0).toString(),
+                          disc: selectedBill.disperc ? `${selectedBill.disperc}% - ${selectedBill.discamount?.toFixed(2)}` : '0% - 0.00',
+                          cgst: (selectedBill.cgstamount || 0).toFixed(2),
+                          sgst: (selectedBill.sgstamount || 0).toFixed(2),
+                          rate: (selectedBill.rate || 0).toString(),
+                          amount: selectedBill.totalamount?.toFixed(2)
+                        }
+                      ],
+                      summary: {
+                        totalQty: '1',
+                        beforeTax: (selectedBill.taxableamount || (selectedBill.totalamount - (selectedBill.gstamount || 0))).toFixed(2),
+                        totalAmount: selectedBill.totalamount?.toFixed(2),
+                        afterTax: selectedBill.totalamount?.toFixed(2)
+                      },
+                      docType: 'invoice'
+                    }}
+                  />
+                )}
               </TView>
-              <View style={{ height: 50 }} />
-           </ScrollView>
+            </ScrollView>
+            <TView style={{ padding: 20 }}>
+              <TouchableOpacity
+                onPress={() => setPreviewVisible(false)}
+                style={[styles.closePreviewBtn, { backgroundColor: '#333' }]}
+              >
+                <TText style={{ color: '#fff', fontWeight: '800' }}>CLOSE PREVIEW</TText>
+              </TouchableOpacity>
+            </TView>
+            <View style={{ height: 50 }} />
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -417,7 +417,7 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 8 },
   backBtn: { padding: 8 },
   searchPart: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
   searchRow: { flexDirection: 'row', gap: 12 },

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 
-interface InvoiceItem {
+export interface InvoiceItem {
   name: string;
   hsn: string;
   box: string | number;
@@ -14,12 +14,17 @@ interface InvoiceItem {
   amount: string | number;
 }
 
-interface InvoiceData {
+export interface InvoiceData {
   business: {
     name?: string;
+    ownerName?: string;
     address?: string;
     address2?: string;
+    landmark?: string;
+    pincode?: string;
     mobile?: string;
+    altMobile?: string;
+    email?: string;
     gstin?: string;
     bankName?: string;
     accountNo?: string;
@@ -27,6 +32,7 @@ interface InvoiceData {
   };
   client: {
     clientname?: string;
+    description?: string;
     addressline1?: string;
     addressline2?: string;
     mobile?: string;
@@ -41,6 +47,7 @@ interface InvoiceData {
     beforeTax: string | number;
     afterTax: string | number;
   };
+  withGST?: boolean;
   docType?: 'quotation' | 'invoice';
 }
 

@@ -1,28 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, Image, View, SafeAreaView, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
 import { MotiView } from '@/components/MotiShim';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { Button } from '../../../components/Button';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { 
-  Building, 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Hash, 
-  CreditCard, 
-  ChevronLeft,
-  Camera,
-  Upload,
-  CheckCircle,
-  Save
-} from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNotifications } from '../../../components/NotificationProvider';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import {
+  Building,
+  Camera,
+  ChevronLeft,
+  CreditCard,
+  Hash,
+  Mail,
+  MapPin,
+  Phone,
+  Upload,
+  User
+} from 'lucide-react-native';
+import React from 'react';
+import { Image, RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Button } from '../../../components/Button';
+import { useNotifications } from '../../../components/NotificationProvider';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { db } from '../../../services/supabase';
+import { COLORS, RADIUS } from '../../../theme';
 
 const MobileField = ({ label, placeholder, icon: Icon, value, onChangeText, multiline, required }: any) => {
   const { colors, isDark } = useTheme();
@@ -33,19 +31,19 @@ const MobileField = ({ label, placeholder, icon: Icon, value, onChangeText, mult
         {required && <TText style={{ color: COLORS.danger, fontSize: 12, marginLeft: 4, marginTop: -6 }}>*</TText>}
       </TView>
       <TView style={[
-        styles.inputContainer, 
-        { 
+        styles.inputContainer,
+        {
           backgroundColor: 'transparent',
           borderWidth: 1,
           borderColor: isDark ? 'rgba(129, 140, 248, 0.2)' : colors.border,
-          height: multiline ? 100 : 52 
+          height: multiline ? 100 : 52
         }
       ]}>
         <Icon size={18} color={COLORS.primary} style={multiline ? { marginTop: 14 } : {}} />
-        <TextInput 
-          placeholder={placeholder} 
+        <TextInput
+          placeholder={placeholder}
           placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#999'}
-          style={[styles.input, { color: colors.text }]} 
+          style={[styles.input, { color: colors.text }]}
           value={value}
           onChangeText={onChangeText}
           multiline={multiline}
@@ -92,7 +90,7 @@ export default function BusinessDetails() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-           setProfile(prev => ({ ...prev, ...parsed }));
+          setProfile(prev => ({ ...prev, ...parsed }));
         }
       }
     } catch (storageErr) {
@@ -104,7 +102,7 @@ export default function BusinessDetails() {
       console.log('Attempting to fetch profile from Supabase for ID: 1');
       const dbProfile = await db.users.getProfile(1);
       console.log('Supabase Profile Data Received:', dbProfile);
-      
+
       if (dbProfile) {
         setProfile({
           userid: dbProfile.userid,
@@ -142,7 +140,7 @@ export default function BusinessDetails() {
     setLoading(true);
     try {
       const userId = profile.userid || 1;
-      
+
       const dbUpdates = {
         optional1: profile.companyName,
         username: profile.ownerName,
@@ -170,7 +168,7 @@ export default function BusinessDetails() {
       } catch (storageErr) {
         console.warn('AsyncStorage failed, profile only saved to DB:', storageErr);
       }
-      
+
       showToast('Business Profile Updated!', 'success');
       setTimeout(() => router.back(), 500);
     } catch (e: any) {
@@ -206,24 +204,24 @@ export default function BusinessDetails() {
         <TView style={{ width: 40 }} />
       </TView>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />
         }
       >
-        <MotiView 
+        <MotiView
           from={{ opacity: 0, translateY: 30 }}
           animate={{ opacity: 1, translateY: 0 }}
           style={[
-            styles.card, 
-            { 
+            styles.card,
+            {
               backgroundColor: 'transparent',
               borderWidth: 1.5,
               borderColor: isDark ? 'rgba(129, 140, 248, 0.4)' : colors.border
@@ -233,7 +231,7 @@ export default function BusinessDetails() {
           {/* Photos */}
           <TView style={styles.photoContainer}>
             <TView style={styles.avatarSection}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => pickImage('ownerPhoto')}
                 style={[styles.avatar, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : colors.surfaceSecondary, borderWidth: 1, borderColor: isDark ? 'rgba(129, 140, 248, 0.2)' : colors.border }]}
               >
@@ -246,7 +244,7 @@ export default function BusinessDetails() {
               <TText style={{ fontSize: 10, fontWeight: '800', marginTop: 8, color: colors.textSecondary }}>OWNER PHOTO</TText>
             </TView>
             <TView style={styles.logoSection}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => pickImage('logo')}
                 style={[styles.logoBox, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : colors.surfaceSecondary, borderColor: isDark ? 'rgba(129, 140, 248, 0.3)' : colors.border }]}
               >
@@ -283,9 +281,9 @@ export default function BusinessDetails() {
           <MobileField label="IFSC / SWIFT" placeholder="IFSC CODE" icon={Hash} value={profile.ifsc} onChangeText={(v: string) => setProfile({ ...profile, ifsc: v })} />
         </MotiView>
 
-        <Button 
-          title="Update Business Profile" 
-          onPress={handleSave} 
+        <Button
+          title="Update Business Profile"
+          onPress={handleSave}
           loading={loading}
           style={{ marginTop: 24, marginBottom: 40 }}
         />
@@ -305,6 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
+    marginTop: 5
   },
   backBtn: {
     padding: 8,

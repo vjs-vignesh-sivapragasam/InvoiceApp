@@ -1,6 +1,6 @@
+import { MotiView } from '@/components/MotiShim';
 import { useRouter } from 'expo-router';
 import { AlertCircle, ChevronLeft, Hash, Info, Save } from 'lucide-react-native';
-import { MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';
@@ -252,7 +252,7 @@ export default function BillSeries() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 15 },
   backBtn: { padding: 8 },
   scrollContent: { padding: 20 },
   previewCard: { padding: 24, borderRadius: RADIUS.xl, borderWidth: 1, marginBottom: 24, alignItems: 'center' },

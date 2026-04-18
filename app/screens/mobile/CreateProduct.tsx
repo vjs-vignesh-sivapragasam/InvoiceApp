@@ -1,6 +1,6 @@
+import { MotiView } from '@/components/MotiShim';
 import { useRouter } from 'expo-router';
 import { Box, ChevronLeft, DollarSign, Edit2, Hash, Package, Plus, Search, ShoppingBag, Tag, X } from 'lucide-react-native';
-import { MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View } from 'react-native';
 import { Button } from '../../../components/Button';
@@ -306,7 +306,7 @@ const MobileProductManagement = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 6 },
   backBtn: { padding: 8 },
   searchContainer: { padding: 20 },
   searchBar: { height: 50, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   headerEditBtn: { padding: 6, borderRadius: 8, backgroundColor: 'rgba(129, 140, 248, 0.1)' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   fab: { position: 'absolute', bottom: 30, right: 30, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
-  modalHeader: { height: 65, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1 },
+  modalHeader: { height: 65, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, marginTop: 44 },
   formSectionTitle: { fontSize: 10, fontWeight: '800', color: COLORS.primary, marginBottom: 12, letterSpacing: 1 },
   label: { marginBottom: 6, fontWeight: '700', fontSize: 12 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 48, borderRadius: RADIUS.md },
