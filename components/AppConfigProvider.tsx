@@ -8,6 +8,7 @@ interface AppConfig {
   billSeriesDelimiter: string;
   billSeriesNumber: string;
   billSeriesCount: string;
+  defaultTemplate: string;
 }
 
 interface AppConfigContextType {
@@ -25,6 +26,7 @@ export const AppConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     billSeriesDelimiter: '/',
     billSeriesNumber: new Date().getFullYear().toString(),
     billSeriesCount: '01',
+    defaultTemplate: '1',
   });
 
   useEffect(() => {

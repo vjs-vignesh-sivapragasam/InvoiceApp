@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Switch, TextInput, View, Platform, SafeAreaView, RefreshControl } from 'react-native';
-import { MotiView } from 'moti';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { 
-  User, Bell, Shield, Moon, LogOut, ChevronRight, 
-  Building, Hash, Key, Layout, Globe, Smartphone, Info, ChevronLeft, FileText, Lock
-} from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { useAppConfig } from '../../../components/AppConfigProvider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import {
+  Building,
+  ChevronRight,
+  CloudDownload,
+  Database,
+  Download,
+  FileText,
+  Hash, Key, Layout,
+  Lock,
+  LogOut,
+  Moon,
+  Server,
+  Smartphone
+} from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import React, { useState } from 'react';
+import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
+import { useAppConfig } from '../../../components/AppConfigProvider';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { db } from '../../../services/supabase';
-import { Activity, Database, Server } from 'lucide-react-native';
+import { COLORS, RADIUS } from '../../../theme';
 
 const SettingGroup = ({ title, children }: any) => {
   const { colors, isDark } = useTheme();
@@ -19,8 +29,8 @@ const SettingGroup = ({ title, children }: any) => {
     <View style={{ marginBottom: 25 }}>
       <TText style={styles.groupTitle}>{title.toUpperCase()}</TText>
       <TView style={[
-        styles.groupCard, 
-        { 
+        styles.groupCard,
+        {
           backgroundColor: 'transparent',
           borderWidth: 1.5,
           borderColor: isDark ? 'rgba(129, 140, 248, 0.4)' : colors.border,
@@ -35,12 +45,12 @@ const SettingGroup = ({ title, children }: any) => {
   );
 };
 
-const SettingItem = ({ 
-  icon: Icon, title, subtitle, showSwitch, value, onToggle, isLast, delay, onPress, renderRight 
+const SettingItem = ({
+  icon: Icon, title, subtitle, showSwitch, value, onToggle, isLast, delay, onPress, renderRight
 }: any) => {
   const { colors, isDark } = useTheme();
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       onPress={onPress}
       disabled={(showSwitch || !!renderRight) && !onPress}
       style={[styles.item, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
@@ -114,6 +124,34 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleBackup = async () => {
+    try {
+      setRefreshing(true);
+      const data = await db.system.generateBackup();
+      const now = new Date();
+      const dateStr = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
+      const filename = `InvoiceApp_Backup_${dateStr}.sql`;
+      const fileUri = FileSystem.cacheDirectory + filename;
+
+      await FileSystem.writeAsStringAsync(fileUri, data.sql, { encoding: 'utf8' });
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/plain',
+          dialogTitle: 'Save Database SQL Backup',
+          UTI: 'public.plain-text'
+        });
+      } else {
+        alert('Sharing is not available on this device');
+      }
+    } catch (error) {
+      console.error('Backup failed:', error);
+      alert('Failed to generate backup');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <TView style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -121,88 +159,94 @@ export default function SettingsScreen() {
         <TView style={{ width: 24 }} />
       </TView>
 
-      <ScrollView 
-        contentContainerStyle={styles.content} 
+      <ScrollView
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
       >
         <SettingGroup title="Business Setup">
-          <SettingItem 
-            icon={Building} title="Business Profile" subtitle="Public info, address and banking" 
-            onPress={() => router.push('/settings/business-details')} 
+          <SettingItem
+            icon={Building} title="Business Profile" subtitle="Public info, address and banking"
+            onPress={() => router.push('/settings/business-details')}
           />
-          <SettingItem 
-            icon={Hash} 
-            title="Bill No Series" 
-            subtitle="Prefix, Delimiter, Starting Number" 
+          <SettingItem
+            icon={Hash}
+            title="Bill No Series"
+            subtitle="Prefix, Delimiter, Starting Number"
             onPress={() => router.push('/settings/bill-series')}
           />
-          <SettingItem 
-            icon={Layout} 
-            title="Invoice Template" 
-            subtitle="Select and set your default invoice design" 
+          <SettingItem
+            icon={Layout}
+            title="Invoice Template"
+            subtitle="Select and set your default invoice design"
             onPress={() => router.push('/settings/templates')}
           />
-          <SettingItem 
-            icon={FileText} 
-            title="Dummy Bill" 
-            subtitle="Quick unofficial bill generation" 
+          <SettingItem
+            icon={FileText}
+            title="Dummy Bill"
+            subtitle="Quick unofficial bill generation"
             onPress={() => router.push('/settings/dummy-bill')}
             isLast
           />
         </SettingGroup>
 
         <SettingGroup title="Database & Connectivity">
-          <SettingItem 
-            icon={Server} 
-            title="Database Health" 
-            subtitle={health?.connected ? "Operational • Latency: " + health.latency : "System Offline"} 
+          <SettingItem
+            icon={Server}
+            title="Database Health"
+            subtitle={health?.connected ? "Operational • Latency: " + health.latency : "System Offline"}
             renderRight={() => (
-              <TView style={{ 
-                width: 8, height: 8, borderRadius: 4, 
-                backgroundColor: health?.connected ? COLORS.success : COLORS.danger 
+              <TView style={{
+                width: 8, height: 8, borderRadius: 4,
+                backgroundColor: health?.connected ? COLORS.success : COLORS.danger
               }} />
             )}
           />
-          <SettingItem 
-            icon={Database} 
-            title="Storage Usage" 
+          <SettingItem
+            icon={Database}
+            title="Storage Usage"
             subtitle={`${health?.usedMB || 0} MB consumed of 500 MB`}
             renderRight={() => (
               <TView style={{ width: 60, height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' }}>
-                <TView style={{ 
-                  width: `${health?.percentUsed || 0}%`, 
-                  height: '100%', 
-                  backgroundColor: parseFloat(health?.percentUsed || '0') > 80 ? COLORS.danger : COLORS.primary 
+                <TView style={{
+                  width: `${health?.percentUsed || 0}%`,
+                  height: '100%',
+                  backgroundColor: parseFloat(health?.percentUsed || '0') > 80 ? COLORS.danger : COLORS.primary
                 }} />
               </TView>
             )}
+          />
+          <SettingItem
+            icon={CloudDownload}
+            title="Database Backup"
+            subtitle="Download local copy of all records"
+            onPress={handleBackup}
             isLast
           />
         </SettingGroup>
 
         <SettingGroup title="Preferences">
-          <SettingItem 
-            icon={Moon} title="Dark Appearance" subtitle="Switch between light and dark modes" 
+          <SettingItem
+            icon={Moon} title="Dark Appearance" subtitle="Switch between light and dark modes"
             showSwitch value={isDark} onToggle={toggleTheme} isLast
           />
         </SettingGroup>
 
         <SettingGroup title="Security">
-          <SettingItem 
-            icon={Key} title="Login Screen" subtitle="Requirement authentication on start" 
-            showSwitch value={config.loginEnabled} onToggle={handleToggleLogin} 
+          <SettingItem
+            icon={Key} title="Login Screen" subtitle="Requirement authentication on start"
+            showSwitch value={config.loginEnabled} onToggle={handleToggleLogin}
           />
-          <SettingItem 
-             icon={Lock} title="Change Password" subtitle="Update your secret login key" 
-             onPress={() => router.push('/settings/change-password')}
-             isLast
+          <SettingItem
+            icon={Lock} title="Change Password" subtitle="Update your secret login key"
+            onPress={() => router.push('/settings/change-password')}
+            isLast
           />
         </SettingGroup>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => router.replace('/(auth)/login')}
           style={[styles.logoutBtn, { borderColor: COLORS.danger + '40' }]}
         >
@@ -211,10 +255,10 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         <TView style={{ alignItems: 'center', marginTop: 30, opacity: 0.5 }}>
-           <Smartphone size={24} color={colors.textSecondary} />
-           <TText style={{ fontSize: 10, fontWeight: '700', marginTop: 5 }}>v1.0.4.0 • PRODUCTION BUILDA</TText>
+          <Smartphone size={24} color={colors.textSecondary} />
+          <TText style={{ fontSize: 10, fontWeight: '700', marginTop: 5 }}>v1.0.4.0 • PRODUCTION BUILDA</TText>
         </TView>
-        
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -223,7 +267,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 25, borderBottomWidth: 1 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 25, borderBottomWidth: 1, marginTop: 4 },
   content: { padding: 20, paddingTop: 20 },
   groupTitle: { fontSize: 10, fontWeight: '900', color: COLORS.primary, letterSpacing: 1.5, marginBottom: 12, marginLeft: 5 },
   groupCard: { borderRadius: RADIUS.xl, overflow: 'hidden' },

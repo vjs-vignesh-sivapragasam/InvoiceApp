@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, View, Share, Platform, Dimensions, SafeAreaView, RefreshControl } from 'react-native';
-import { MotiView } from 'moti';
-import { LinearGradient } from 'expo-linear-gradient';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { db } from '../../../services/supabase';
-import { 
-  FileText, TrendingUp, Download, Calendar, 
-  Users, Package, ArrowUpCircle, ArrowDownCircle, 
-  Sliders, RotateCcw, RefreshCw, Filter, ChevronLeft, ChevronRight
-} from 'lucide-react-native';
+import { MotiView } from '@/components/MotiShim';
 import { useRouter } from 'expo-router';
+import {
+  Calendar,
+  ChevronLeft,
+  Download,
+  FileText, TrendingUp
+} from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, RefreshControl, SafeAreaView, ScrollView, Share, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
+import { db } from '../../../services/supabase';
+import { COLORS, RADIUS, SHADOWS } from '../../../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -32,20 +32,20 @@ const StatModule = ({ label, value, color, icon: Icon }: any) => {
   const { colors } = useTheme();
   return (
     <TView style={[
-      styles.statModule, 
-      { 
+      styles.statModule,
+      {
         backgroundColor: 'transparent',
         borderWidth: 1.2,
         borderColor: 'rgba(129, 140, 248, 0.3)'
       }
     ]}>
-       <TView style={styles.statIconSmall}>
-          <Icon size={14} color={color} />
-       </TView>
-       <TView style={{ marginTop: 10 }}>
-          <TText style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>{value}</TText>
-          <TText variant="caption" style={{ fontSize: 10, fontWeight: '700', marginTop: 2 }}>{label.toUpperCase()}</TText>
-       </TView>
+      <TView style={styles.statIconSmall}>
+        <Icon size={14} color={color} />
+      </TView>
+      <TView style={{ marginTop: 10 }}>
+        <TText style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>{value}</TText>
+        <TText variant="caption" style={{ fontSize: 10, fontWeight: '700', marginTop: 2 }}>{label.toUpperCase()}</TText>
+      </TView>
     </TView>
   );
 };
@@ -56,7 +56,7 @@ export default function ReportsScreen() {
   const [tab, setTab] = useState<ReportTab>('transactions');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ bills: [] as any[], inventory: [] as any[], clients: [] as any[] });
-  
+
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [clientId, setClientId] = useState('');
@@ -70,8 +70,8 @@ export default function ReportsScreen() {
     try {
       const [bills, inv, cli] = await Promise.all([db.billing.getAll(), db.inventory.getAll(), db.clients.getAll()]);
       setData({ bills, inventory: inv, clients: cli });
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   };
@@ -103,22 +103,22 @@ export default function ReportsScreen() {
 
       <TView style={[styles.tabBar, { backgroundColor: 'rgba(129, 140, 248, 0.1)', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.2)' }]}>
         <TouchableOpacity onPress={() => setTab('transactions')} style={[styles.tab, tab === 'transactions' && { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.2)' : '#fff', ...SHADOWS.sm }]}>
-           <FileText size={16} color={tab === 'transactions' ? COLORS.primary : colors.textSecondary} />
-           <TText style={[styles.tabLabel, tab === 'transactions' && { color: COLORS.primary }]}>Sales</TText>
+          <FileText size={16} color={tab === 'transactions' ? COLORS.primary : colors.textSecondary} />
+          <TText style={[styles.tabLabel, tab === 'transactions' && { color: COLORS.primary }]}>Sales</TText>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setTab('inventory')} style={[styles.tab, tab === 'inventory' && { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.2)' : '#fff', ...SHADOWS.sm }]}>
-           <TrendingUp size={16} color={tab === 'inventory' ? COLORS.primary : colors.textSecondary} />
-           <TText style={[styles.tabLabel, tab === 'inventory' && { color: COLORS.primary }]}>Stock</TText>
+          <TrendingUp size={16} color={tab === 'inventory' ? COLORS.primary : colors.textSecondary} />
+          <TText style={[styles.tabLabel, tab === 'inventory' && { color: COLORS.primary }]}>Stock</TText>
         </TouchableOpacity>
       </TView>
 
-      <ScrollView 
-        contentContainerStyle={styles.content} 
+      <ScrollView
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />
@@ -126,51 +126,51 @@ export default function ReportsScreen() {
       >
         {/* Filter Section */}
         <TView style={[styles.filterCard, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.3)' }]}>
-           <TText style={styles.filterTitle}>PERIOD FILTERS</TText>
-           <TView style={styles.dateRow}>
-              <TView style={[styles.dateInput, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.15)' }]}>
-                 <Calendar size={14} color={colors.textSecondary} />
-                 <TextInput value={fromDate} onChangeText={setFromDate} placeholder="From YYYY-MM-DD" style={[styles.input, { color: colors.text }]} placeholderTextColor={colors.textSecondary} />
-              </TView>
-              <TView style={[styles.dateInput, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.15)' }]}>
-                 <Calendar size={14} color={colors.textSecondary} />
-                 <TextInput value={toDate} onChangeText={setToDate} placeholder="To YYYY-MM-DD" style={[styles.input, { color: colors.text }]} placeholderTextColor={colors.textSecondary} />
-              </TView>
-           </TView>
-           
-           <TouchableOpacity onPress={() => {}} style={[styles.exportBtn, { backgroundColor: COLORS.primary }]}>
-              <Download size={18} color="#fff" />
-              <TText style={{ color: '#fff', fontWeight: '800', marginLeft: 10 }}>Export Result to CSV</TText>
-           </TouchableOpacity>
+          <TText style={styles.filterTitle}>PERIOD FILTERS</TText>
+          <TView style={styles.dateRow}>
+            <TView style={[styles.dateInput, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.15)' }]}>
+              <Calendar size={14} color={colors.textSecondary} />
+              <TextInput value={fromDate} onChangeText={setFromDate} placeholder="From YYYY-MM-DD" style={[styles.input, { color: colors.text }]} placeholderTextColor={colors.textSecondary} />
+            </TView>
+            <TView style={[styles.dateInput, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.15)' }]}>
+              <Calendar size={14} color={colors.textSecondary} />
+              <TextInput value={toDate} onChangeText={setToDate} placeholder="To YYYY-MM-DD" style={[styles.input, { color: colors.text }]} placeholderTextColor={colors.textSecondary} />
+            </TView>
+          </TView>
+
+          <TouchableOpacity onPress={() => { }} style={[styles.exportBtn, { backgroundColor: COLORS.primary }]}>
+            <Download size={18} color="#fff" />
+            <TText style={{ color: '#fff', fontWeight: '800', marginLeft: 10 }}>Export Result to CSV</TText>
+          </TouchableOpacity>
         </TView>
 
         {loading ? <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} /> : (
           <>
             <TText variant="subtitle" style={styles.sectionHeader}>Aggregate Performance</TText>
             <View style={styles.statsGrid}>
-               <StatModule label="Transactions" value={tab === 'transactions' ? filteredBills.length : data.inventory.length} color={COLORS.primary} icon={TrendingUp} />
-               <StatModule label={tab === 'transactions' ? 'Revenue' : 'Stock Out'} value={tab === 'transactions' ? `₹${totalRev.toLocaleString()}` : '-450'} color={tab === 'transactions' ? COLORS.success : COLORS.danger} icon={TrendingUp} />
+              <StatModule label="Transactions" value={tab === 'transactions' ? filteredBills.length : data.inventory.length} color={COLORS.primary} icon={TrendingUp} />
+              <StatModule label={tab === 'transactions' ? 'Revenue' : 'Stock Out'} value={tab === 'transactions' ? `₹${totalRev.toLocaleString()}` : '-450'} color={tab === 'transactions' ? COLORS.success : COLORS.danger} icon={TrendingUp} />
             </View>
 
             <TText variant="subtitle" style={[styles.sectionHeader, { marginTop: 25 }]}>Detailed Log</TText>
             {tab === 'transactions' ? filteredBills.map((b, i) => (
-               <MotiView key={b.billingid || i} from={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
-                  <TView>
-                     <TText style={{ fontWeight: '700' }}>{b.clientdetails?.clientname || 'Client'}</TText>
-                     <TText variant="caption">{b.billno || '#' + b.billingid}</TText>
-                  </TView>
-                  <TView style={{ alignItems: 'flex-end' }}>
-                     <TText style={{ fontWeight: '800', color: COLORS.primary }}>₹{b.totalamount?.toLocaleString()}</TText>
-                     <TText variant="caption">{b.billdate}</TText>
-                  </TView>
-               </MotiView>
+              <MotiView key={b.billingid || i} from={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
+                <TView>
+                  <TText style={{ fontWeight: '700' }}>{b.clientdetails?.clientname || 'Client'}</TText>
+                  <TText variant="caption">{b.billno || '#' + b.billingid}</TText>
+                </TView>
+                <TView style={{ alignItems: 'flex-end' }}>
+                  <TText style={{ fontWeight: '800', color: COLORS.primary }}>₹{b.totalamount?.toLocaleString()}</TText>
+                  <TText variant="caption">{b.billdate}</TText>
+                </TView>
+              </MotiView>
             )) : data.inventory.slice(0, 10).map((e, i) => (
               <MotiView key={e.inventoryid || i} from={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
-                 <TView>
-                    <TText style={{ fontWeight: '700' }}>{e.products?.productname || 'Item'}</TText>
-                    <TText variant="caption">{e.movementtype.toUpperCase()}</TText>
-                 </TView>
-                 <TText style={{ fontWeight: '800', color: COLORS.accent }}>{e.quantitymoved} units</TText>
+                <TView>
+                  <TText style={{ fontWeight: '700' }}>{e.products?.productname || 'Item'}</TText>
+                  <TText variant="caption">{e.movementtype.toUpperCase()}</TText>
+                </TView>
+                <TText style={{ fontWeight: '800', color: COLORS.accent }}>{e.quantitymoved} units</TText>
               </MotiView>
             ))}
           </>
@@ -183,7 +183,7 @@ export default function ReportsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 8 },
   backBtn: { padding: 8 },
   tabBar: { flexDirection: 'row', marginHorizontal: 20, padding: 4, borderRadius: 14, marginBottom: 20, marginTop: 15 },
   tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10 },

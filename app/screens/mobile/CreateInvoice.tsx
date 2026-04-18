@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView, AnimatePresence } from '@/components/MotiShim';
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { Button } from '../../../components/Button';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
@@ -200,13 +200,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    height: 100,
-    paddingTop: 50,
+    height: 60,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
+    marginTop: 40
   },
   backButton: {
     padding: 8,

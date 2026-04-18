@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, TextInput, ScrollView, Switch, ActivityIndicator, View } from 'react-native';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView, AnimatePresence } from '@/components/MotiShim';
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { WebLayout } from './WebLayout';
 import { Button } from '../../../components/Button';

@@ -1,15 +1,16 @@
-import React from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, View, Dimensions, SafeAreaView, Platform } from 'react-native';
-import { MotiView } from 'moti';
-import { LinearGradient } from 'expo-linear-gradient';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { 
-  Users, Package, Database, ChevronRight, ChevronLeft,
-  Box, ArrowRightLeft, BarChart2, ShieldCheck, 
-  Zap, Info, Layout
-} from 'lucide-react-native';
+import { MotiView } from '@/components/MotiShim';
 import { useRouter } from 'expo-router';
+import {
+  ArrowRightLeft, BarChart2,
+  ChevronLeft,
+  ChevronRight,
+  Package,
+  Users
+} from 'lucide-react-native';
+import React from 'react';
+import { Dimensions, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
+import { COLORS, RADIUS } from '../../../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -22,14 +23,14 @@ const MasterItem = ({ icon: Icon, title, subtitle, color, onPress, delay }: any)
       transition={{ delay, type: 'timing', duration: 400 }}
       style={{ marginBottom: 16 }}
     >
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
         style={[
-          styles.itemCard, 
-          { 
-            backgroundColor: 'transparent', 
-            borderWidth: 1.2, 
+          styles.itemCard,
+          {
+            backgroundColor: 'transparent',
+            borderWidth: 1.2,
             borderColor: 'rgba(129, 140, 248, 0.3)',
           }
         ]}
@@ -42,7 +43,7 @@ const MasterItem = ({ icon: Icon, title, subtitle, color, onPress, delay }: any)
           <TText variant="caption" style={{ fontSize: 12, marginTop: 2 }}>{subtitle}</TText>
         </TView>
         <TView style={styles.arrowBox}>
-           <ChevronRight size={16} color={colors.textSecondary} />
+          <ChevronRight size={16} color={colors.textSecondary} />
         </TView>
       </TouchableOpacity>
     </MotiView>
@@ -65,43 +66,43 @@ export default function MasterScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <TView style={styles.innerContent}>
-           <TText variant="subtitle" style={styles.groupLabel}>DATA SETUP</TText>
-           <MasterItem 
-              icon={Users} 
-              title="Add Client" 
-              subtitle="Register, segment and manage your customers" 
-              color={COLORS.primary}
-              onPress={() => router.push('/manage-clients')}
-              delay={100}
-           />
-           
-           <MasterItem 
-              icon={Package} 
-              title="Add Product" 
-              subtitle="SKU management, HSN and pricing control" 
-              color={COLORS.secondary}
-              onPress={() => router.push('/manage-products')}
-              delay={200}
-           />
+          <TText variant="subtitle" style={styles.groupLabel}>DATA SETUP</TText>
+          <MasterItem
+            icon={Users}
+            title="Add Client"
+            subtitle="Register, segment and manage your customers"
+            color={COLORS.primary}
+            onPress={() => router.push('/manage-clients')}
+            delay={100}
+          />
 
-           <TText variant="subtitle" style={[styles.groupLabel, { marginTop: 10 }]}>RECORDS</TText>
-           <MasterItem 
-              icon={ArrowRightLeft} 
-              title="Stock" 
-              subtitle="Stock entries, adjustments and tracking" 
-              color={COLORS.accent}
-              onPress={() => router.push('/manage-inventory')}
-              delay={300}
-           />
+          <MasterItem
+            icon={Package}
+            title="Add Product"
+            subtitle="SKU management, HSN and pricing control"
+            color={COLORS.secondary}
+            onPress={() => router.push('/manage-products')}
+            delay={200}
+          />
 
-           <MasterItem 
-              icon={BarChart2} 
-              title="Reports" 
-              subtitle="Sales reports and detailed analytics" 
-              color="#a855f7"
-              onPress={() => router.push('/reports')}
-              delay={400}
-           />
+          <TText variant="subtitle" style={[styles.groupLabel, { marginTop: 10 }]}>RECORDS</TText>
+          <MasterItem
+            icon={ArrowRightLeft}
+            title="Stock"
+            subtitle="Stock entries, adjustments and tracking"
+            color={COLORS.accent}
+            onPress={() => router.push('/manage-inventory')}
+            delay={300}
+          />
+
+          <MasterItem
+            icon={BarChart2}
+            title="Reports"
+            subtitle="Sales reports and detailed analytics"
+            color="#a855f7"
+            onPress={() => router.push('/reports')}
+            delay={400}
+          />
         </TView>
 
         <View style={{ height: 100 }} />
@@ -112,7 +113,7 @@ export default function MasterScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 8 },
   backBtn: { padding: 8 },
   content: { padding: 5, paddingTop: 15 },
   innerContent: { padding: 15, backgroundColor: 'transparent' },

@@ -1,10 +1,6 @@
-// ⚠️ Must be first — polyfills navigator.userAgent before moti/framer-motion loads
-import '../polyfills';
-
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import 'react-native-reanimated';
 import { ThemeProvider } from '../components/ThemedUI';
 import { AppConfigProvider } from '../components/AppConfigProvider';
 import { NotificationProvider } from '../components/NotificationProvider';
@@ -14,7 +10,12 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    // Safety timeout to hide splash screen even if an error occurs
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 3000);
+
+    SplashScreen.hideAsync().then(() => clearTimeout(timer));
   }, []);
 
   return (

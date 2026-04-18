@@ -3,7 +3,7 @@ import { StyleSheet, TouchableOpacity, View, Switch, TextInput } from 'react-nat
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { WebLayout } from './WebLayout';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { User, Building, Shield, Moon, ChevronRight, Key, Hash, Layout } from 'lucide-react-native';
+import { User, Building, Shield, Moon, ChevronRight, Key, Hash, Layout, Database, CloudDownload } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAppConfig } from '../../../components/AppConfigProvider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -85,6 +85,26 @@ export const Settings = () => {
     }
   };
 
+  const handleBackup = async () => {
+    try {
+      const data = await db.system.generateBackup();
+      const now = new Date();
+      const dateStr = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
+      const blob = new Blob([data.sql], { type: 'text/sql' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `InvoiceApp_Backup_${dateStr}.sql`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Backup failed:', error);
+      alert('Failed to generate backup');
+    }
+  };
+
   return (
     <WebLayout>
       <TView style={styles.header}>
@@ -137,6 +157,15 @@ export const Settings = () => {
               description="Add an extra layer of security" 
               showSwitch 
               value={false} 
+            />
+          </SettingCard>
+
+          <SettingCard title="System & Data">
+            <SettingItem 
+              icon={CloudDownload} 
+              title="Full Database Backup" 
+              description="Generate and download a JSON backup of all tables" 
+              onPress={handleBackup}
             />
           </SettingCard>
 

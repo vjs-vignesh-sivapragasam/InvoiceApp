@@ -1,8 +1,8 @@
-import React from 'react';
-import { Platform, View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
+import { Database, History, LayoutDashboard, Plus, Settings } from 'lucide-react-native';
+import React from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useTheme } from '../../components/ThemedUI';
-import { LayoutDashboard, Plus, History, Settings, Database } from 'lucide-react-native';
 import { COLORS } from '../../theme';
 
 export default function TabLayout() {
@@ -16,7 +16,7 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
-          height: 60,
+          height: 70,
           paddingBottom: 10,
           display: Platform.OS === 'web' ? 'none' : 'flex',
         },
@@ -49,8 +49,8 @@ export default function TabLayout() {
           title: 'Billing',
           tabBarIcon: ({ color, focused }) => (
             <View style={[
-              styles.billingTabIcon, 
-              { 
+              styles.billingTabIcon,
+              {
                 backgroundColor: focused ? COLORS.primary : colors.surfaceSecondary,
                 shadowColor: COLORS.primary,
                 elevation: focused ? 8 : 0,
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -25, // Raise it up
+    marginTop: -40, // Raise it up
     borderWidth: 3,
     borderColor: 'transparent',
   }

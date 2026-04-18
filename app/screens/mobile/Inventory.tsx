@@ -1,17 +1,24 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, View, RefreshControl, Dimensions, SafeAreaView, Platform } from 'react-native';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Package, Plus, Minus, Search, AlertTriangle, 
-  ArrowUpCircle, ArrowDownCircle, Sliders, 
-  RotateCcw, List, ChevronRight, ChevronLeft, CheckCircle
-} from 'lucide-react-native';
-import { TView, TText, useTheme } from '../../../components/ThemedUI';
-import { db } from '../../../services/supabase';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '../../../theme';
-import { useNotifications } from '../../../components/NotificationProvider';
 import { useRouter } from 'expo-router';
+import {
+  AlertTriangle,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ChevronLeft,
+  List,
+  Minus,
+  Package, Plus,
+  RotateCcw,
+  Search,
+  Sliders
+} from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { useNotifications } from '../../../components/NotificationProvider';
+import { TText, TView, useTheme } from '../../../components/ThemedUI';
+import { db } from '../../../services/supabase';
+import { COLORS, RADIUS, SHADOWS } from '../../../theme';
 const { width } = Dimensions.get('window');
 
 const MOVEMENT_CONFIG: any = {
@@ -24,7 +31,7 @@ const MOVEMENT_CONFIG: any = {
 export default function MobileInventory() {
   const { colors, isDark } = useTheme();
   const { showToast } = useNotifications();
-  
+
   const [tab, setTab] = useState<'stock' | 'log'>('stock');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +46,7 @@ export default function MobileInventory() {
       const [pData, lData] = await Promise.all([db.products.getWithStock(), db.inventory.getAll()]);
       setProducts(pData);
       setLog(lData);
-    } catch { showToast('Sync failed', 'error'); } 
+    } catch { showToast('Sync failed', 'error'); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -58,7 +65,7 @@ export default function MobileInventory() {
 
     try {
       setUpdatingId(id);
-      
+
       // We log the movement - the inventory log is the source of truth
       await db.inventory.logMovement({
         productid: id,
@@ -74,7 +81,7 @@ export default function MobileInventory() {
       setUpdatingId(null);
       showToast('Inventory updated!');
       fetchData(); // Refresh logs to get accurate history
-    } catch { showToast('Update failed', 'error'); } 
+    } catch { showToast('Update failed', 'error'); }
     finally { setUpdatingId(null); }
   };
 
@@ -114,45 +121,45 @@ export default function MobileInventory() {
                 <MotiView key={item.productid} from={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 50 }} style={[styles.stockCard, { backgroundColor: 'transparent', borderWidth: 1.2, borderColor: 'rgba(129, 140, 248, 0.3)' }]}>
                   <TView style={styles.cardInfo}>
                     <TView style={styles.itemIcon}>
-                       <Package size={20} color={COLORS.primary} />
+                      <Package size={20} color={COLORS.primary} />
                     </TView>
                     <TView style={{ flex: 1, marginLeft: 15 }}>
-                       <TText style={{ fontWeight: '800', fontSize: 16 }}>{item.productname}</TText>
-                       <TText variant="caption">HSN: {item.hsn || '-'} • BOX: {item.incase || '0'}</TText>
+                      <TText style={{ fontWeight: '800', fontSize: 16 }}>{item.productname}</TText>
+                      <TText variant="caption">HSN: {item.hsn || '-'} • BOX: {item.incase || '0'}</TText>
                     </TView>
                     <TView style={[styles.stockValueBox, { backgroundColor: (item.currentStock || 0) < 10 ? COLORS.danger + '15' : COLORS.success + '15' }]}>
-                       <TText style={{ fontWeight: '900', color: (item.currentStock || 0) < 10 ? COLORS.danger : COLORS.success }}>{item.currentStock || 0}</TText>
-                       <TText style={{ fontSize: 8, fontWeight: '800', color: (item.currentStock || 0) < 10 ? COLORS.danger : COLORS.success }}>UNITS</TText>
+                      <TText style={{ fontWeight: '900', color: (item.currentStock || 0) < 10 ? COLORS.danger : COLORS.success }}>{item.currentStock || 0}</TText>
+                      <TText style={{ fontSize: 8, fontWeight: '800', color: (item.currentStock || 0) < 10 ? COLORS.danger : COLORS.success }}>UNITS</TText>
                     </TView>
                   </TView>
 
                   {(item.currentStock || 0) < 10 && (
                     <TView style={styles.alertBar}>
-                       <AlertTriangle size={12} color={COLORS.danger} />
-                       <TText style={{ color: COLORS.danger, fontSize: 10, fontWeight: '800', marginLeft: 6 }}>CRITICAL LOW STOCK LEVEL</TText>
+                      <AlertTriangle size={12} color={COLORS.danger} />
+                      <TText style={{ color: COLORS.danger, fontSize: 10, fontWeight: '800', marginLeft: 6 }}>CRITICAL LOW STOCK LEVEL</TText>
                     </TView>
                   )}
 
                   <TView style={[styles.divider, { backgroundColor: colors.border }]} />
 
                   <TView style={styles.actionRow}>
-                     <TView style={[styles.inputWrapper, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.2)' }]}>
-                        <TextInput 
-                          placeholder="Adjustment Qty" 
-                          keyboardType="numeric"
-                          value={updatingId === item.productid ? adjustment : ''}
-                          onChangeText={v => { setUpdatingId(item.productid); setAdjustment(v); }}
-                          style={{ flex: 1, height: 44, textAlign: 'center', fontWeight: '800', color: colors.text }}
-                        />
-                     </TView>
-                     <TouchableOpacity onPress={() => handleUpdateStock(item.productid, 'add')} style={styles.actionBtn}>
-                        <LinearGradient colors={[COLORS.success, '#059669']} style={StyleSheet.absoluteFill} />
-                        <Plus size={20} color="#fff" />
-                     </TouchableOpacity>
-                     <TouchableOpacity onPress={() => handleUpdateStock(item.productid, 'remove')} style={styles.actionBtn}>
-                        <LinearGradient colors={[COLORS.danger, '#dc2626']} style={StyleSheet.absoluteFill} />
-                        <Minus size={20} color="#fff" />
-                     </TouchableOpacity>
+                    <TView style={[styles.inputWrapper, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.2)' }]}>
+                      <TextInput
+                        placeholder="Adjustment Qty"
+                        keyboardType="numeric"
+                        value={updatingId === item.productid ? adjustment : ''}
+                        onChangeText={v => { setUpdatingId(item.productid); setAdjustment(v); }}
+                        style={{ flex: 1, height: 44, textAlign: 'center', fontWeight: '800', color: colors.text }}
+                      />
+                    </TView>
+                    <TouchableOpacity onPress={() => handleUpdateStock(item.productid, 'add')} style={styles.actionBtn}>
+                      <LinearGradient colors={[COLORS.success, '#059669']} style={StyleSheet.absoluteFill} />
+                      <Plus size={20} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleUpdateStock(item.productid, 'remove')} style={styles.actionBtn}>
+                      <LinearGradient colors={[COLORS.danger, '#dc2626']} style={StyleSheet.absoluteFill} />
+                      <Minus size={20} color="#fff" />
+                    </TouchableOpacity>
                   </TView>
                 </MotiView>
               ))
@@ -165,19 +172,19 @@ export default function MobileInventory() {
             const Icon = cfg.icon;
             return (
               <MotiView key={entry.inventoryid} from={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 30 }} style={[styles.logRow, { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(129, 140, 248, 0.2)' }]}>
-                 <TView style={styles.logIcon}>
-                    <Icon size={18} color={cfg.color} />
-                 </TView>
-                 <TView style={{ flex: 1, marginLeft: 12 }}>
-                    <TText style={{ fontWeight: '700', fontSize: 14 }}>{entry.products?.productname || 'System record'}</TText>
-                    <TText variant="caption">{entry.notes || cfg.label.toUpperCase()}</TText>
-                 </TView>
-                 <TView style={{ alignItems: 'flex-end' }}>
-                    <TText style={{ fontWeight: '900', color: ['sale', 'adjustment'].includes(entry.movementtype) ? COLORS.danger : COLORS.success }}>
-                       {['sale', 'adjustment'].includes(entry.movementtype) ? '-' : '+'}{entry.quantitymoved}
-                    </TText>
-                    <TText variant="caption" style={{ fontSize: 10 }}>{entry.previousstock} → {entry.newstock}</TText>
-                 </TView>
+                <TView style={styles.logIcon}>
+                  <Icon size={18} color={cfg.color} />
+                </TView>
+                <TView style={{ flex: 1, marginLeft: 12 }}>
+                  <TText style={{ fontWeight: '700', fontSize: 14 }}>{entry.products?.productname || 'System record'}</TText>
+                  <TText variant="caption">{entry.notes || cfg.label.toUpperCase()}</TText>
+                </TView>
+                <TView style={{ alignItems: 'flex-end' }}>
+                  <TText style={{ fontWeight: '900', color: ['sale', 'adjustment'].includes(entry.movementtype) ? COLORS.danger : COLORS.success }}>
+                    {['sale', 'adjustment'].includes(entry.movementtype) ? '-' : '+'}{entry.quantitymoved}
+                  </TText>
+                  <TText variant="caption" style={{ fontSize: 10 }}>{entry.previousstock} → {entry.newstock}</TText>
+                </TView>
               </MotiView>
             );
           })
@@ -190,7 +197,7 @@ export default function MobileInventory() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 8 },
   backBtn: { padding: 8 },
   tabContainer: { flexDirection: 'row', marginHorizontal: 20, padding: 4, borderRadius: 14, marginBottom: 20 },
   tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10 },

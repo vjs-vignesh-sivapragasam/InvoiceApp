@@ -15,7 +15,7 @@ import {
    Zap,
    AlertTriangle
 } from 'lucide-react-native';
-import { AnimatePresence, MotiView } from 'moti';
+import { AnimatePresence, MotiView } from '@/components/MotiShim';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, RefreshControl, SafeAreaView, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';
@@ -279,7 +279,7 @@ export default function DashboardScreen() {
                         ['#EC4899', '#DB2777'], // Rose
                         ['#10B981', '#059669'], // Emerald
                         ['#F59E0B', '#D97706'], // Amber
-                     ];
+                     ] as const;
                      const grad = gradients[idx % gradients.length];
                      
                      return (
@@ -352,7 +352,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
    container: { flex: 1 },
    scrollContent: { paddingBottom: 20 },
-   headerContainer: { paddingHorizontal: 25, paddingTop: 30, marginBottom: 25 },
+   headerContainer: { paddingHorizontal: 25, paddingTop: 40, marginBottom: 25 },
    headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
    headerGreeting: { fontSize: 13, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 },
    headerName: { fontSize: 26, fontWeight: '900', color: COLORS.primary, letterSpacing: -0.5 },

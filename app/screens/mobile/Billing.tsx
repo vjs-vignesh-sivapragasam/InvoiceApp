@@ -1,3 +1,4 @@
+import { AnimatePresence, MotiView } from '@/components/MotiShim';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -20,7 +21,6 @@ import {
   User as UserIcon,
   X
 } from 'lucide-react-native';
-import { AnimatePresence, MotiView } from 'moti';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';
@@ -68,6 +68,7 @@ const MobileBilling = () => {
   const [businessProfile, setBusinessProfile] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT' | 'GPAY'>('CASH');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -77,7 +78,7 @@ const MobileBilling = () => {
     }
   };
 
-  const gstOptions = ['2', '8', '9', '12', '18'];
+  const gstOptions = ['5', '2', '8', '9', '12', '18', '25', '40'];
 
   useEffect(() => {
     fetchInitialData();
@@ -175,13 +176,18 @@ const MobileBilling = () => {
 
   const calculateTotal = () => getCalculations().totalAmount;
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!selectedClient) return showToast('Please select a client', 'error');
+    setConfirmModalVisible(true);
+  };
+
+  const executeSave = async () => {
+    setConfirmModalVisible(false);
     setLoading(true);
     try {
       const calcs = getCalculations();
       await db.billing.create({
-        clientid: selectedClient.clientid,
+        clientid: selectedClient!.clientid,
         billno: billNo,
         totalamount: calcs.totalAmount,
         taxableamount: calcs.taxableAmount,
@@ -208,7 +214,7 @@ const MobileBilling = () => {
           const product = products.find(p => p.productid === item.productid);
           if (product) {
             const currentStock = (product as any).currentStock || 0;
-            const newStock = currentStock - (parseInt(item.qty) || 0); 
+            const newStock = currentStock - (parseInt(item.qty) || 0);
 
             // Update product stock in logs
             await db.inventory.logMovement({
@@ -218,7 +224,7 @@ const MobileBilling = () => {
               previousstock: currentStock,
               newstock: newStock,
               referenceno: billNo,
-              notes: `Sale to ${selectedClient.clientname}`
+              notes: `Sale to ${selectedClient!.clientname}`
             });
           }
         }
@@ -443,10 +449,10 @@ const MobileBilling = () => {
               <TText variant="caption">₹{item.sellingprice} | HSN: {item.hsn || '-'}</TText>
             </TView>
             <TView style={{ alignItems: 'flex-end' }}>
-               <TView style={{ backgroundColor: isLow ? COLORS.danger + '15' : COLORS.success + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                  <TText style={{ fontSize: 10, fontWeight: '900', color: isLow ? COLORS.danger : COLORS.success }}>Stock: {availableStock}</TText>
-               </TView>
-               {isLow && <TText style={{ fontSize: 8, color: COLORS.danger, fontWeight: '800', marginTop: 4 }}>LOW STOCK</TText>}
+              <TView style={{ backgroundColor: isLow ? COLORS.danger + '15' : COLORS.success + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                <TText style={{ fontSize: 10, fontWeight: '900', color: isLow ? COLORS.danger : COLORS.success }}>Stock: {availableStock}</TText>
+              </TView>
+              {isLow && <TText style={{ fontSize: 8, color: COLORS.danger, fontWeight: '800', marginTop: 4 }}>LOW STOCK</TText>}
             </TView>
             <ChevronRight size={18} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -501,13 +507,46 @@ const MobileBilling = () => {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+      <Modal visible={confirmModalVisible} transparent animationType="fade">
+        <TView style={styles.centeredModal}>
+          <MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.modalSheet, { backgroundColor: colors.background, height: 'auto', padding: 25 }]}>
+            <TView style={{ alignItems: 'center', marginBottom: 20 }}>
+              <TView style={[styles.modalItemIcon, { width: 60, height: 60, borderRadius: 30, marginBottom: 15 }]}><ShieldCheck size={32} color={COLORS.primary} /></TView>
+              <TText style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Confirm Transaction</TText>
+              <TText style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: 8 }}>Are you sure you want to generate this {docType}? This will reduce stock from inventory.</TText>
+            </TView>
+
+            <TView style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 15, borderRadius: 16, marginBottom: 25 }}>
+               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <TText style={{ fontSize: 12, opacity: 0.6 }}>Net Payable</TText>
+                  <TText style={{ fontSize: 16, fontWeight: '900', color: COLORS.primary }}>₹{calculateTotal().toLocaleString()}</TText>
+               </TView>
+               <TView style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <TText style={{ fontSize: 12, opacity: 0.6 }}>Payment Method</TText>
+                  <TText style={{ fontSize: 12, fontWeight: '800' }}>{paymentMethod}</TText>
+               </TView>
+            </TView>
+
+            <TView style={{ flexDirection: 'row', gap: 12 }}>
+               <TouchableOpacity onPress={() => setConfirmModalVisible(false)} style={{ flex: 1, height: 50, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
+                  <TText style={{ fontWeight: '800', opacity: 0.6 }}>Cancel</TText>
+               </TouchableOpacity>
+               <TouchableOpacity onPress={executeSave} style={{ flex: 1.5, height: 50, borderRadius: 12, overflow: 'hidden' }}>
+                  <LinearGradient colors={['#6366F1', '#4F46E5']} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                     <TText style={{ color: '#fff', fontWeight: '900' }}>Confirm & Finish</TText>
+                  </LinearGradient>
+               </TouchableOpacity>
+            </TView>
+          </MotiView>
+        </TView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, marginTop: Platform.OS === 'android' ? 35 : 0 },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, marginTop: 40 },
   backBtn: { width: 44, height: 44, justifyContent: 'center' },
   scrollContent: { paddingBottom: 150 },
   typeSwitcher: { flexDirection: 'row', padding: 5, borderRadius: 16, marginHorizontal: 20, marginBottom: 15, marginTop: 15 },

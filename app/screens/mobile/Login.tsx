@@ -4,7 +4,6 @@ import {
    Delete,
    XCircle
 } from 'lucide-react-native';
-import { AnimatePresence, MotiView } from 'moti';
 import React, { useState, useEffect } from 'react';
 import {
    ActivityIndicator,
@@ -35,33 +34,29 @@ const THEME = {
       primary: ['#6366F1', '#4F46E5'],
       background: ['#020617', '#0F172A'],
    }
-};
+} as const;
 
 const PinSlot = ({ value, focused, error }: { value: string; focused: boolean; error: boolean }) => (
-   <MotiView 
-      animate={{ 
-         borderColor: error ? THEME.colors.danger : (focused ? THEME.colors.primaryLight : 'rgba(139, 149, 186, 0.2)'),
-         scale: focused ? 1.1 : 1,
-         backgroundColor: error ? 'rgba(239, 68, 68, 0.1)' : (focused ? 'rgba(99, 102, 241, 0.1)' : 'rgba(30, 39, 73, 0.3)')
-      }}
-      transition={{ type: 'spring', damping: 15 }}
-      style={styles.pinSlot}
+   <View 
+      style={[
+        styles.pinSlot,
+        { 
+          borderColor: error ? THEME.colors.danger : (focused ? THEME.colors.primaryLight : 'rgba(139, 149, 186, 0.2)'),
+          backgroundColor: error ? 'rgba(239, 68, 68, 0.1)' : (focused ? 'rgba(99, 102, 241, 0.1)' : 'rgba(30, 39, 73, 0.3)'),
+          transform: [{ scale: focused ? 1.1 : 1 }]
+        }
+      ]}
    >
       {value ? (
-         <MotiView 
-            from={{ scale: 0, opacity: 0 }} 
-            animate={{ scale: 1, opacity: 1 }} 
+         <View 
             style={[styles.pinDot, { backgroundColor: error ? THEME.colors.danger : '#fff' }]} 
          />
       ) : focused ? (
-         <MotiView 
-            from={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            transition={{ loop: true, duration: 800 }} 
+         <View 
             style={styles.cursor} 
          />
       ) : null}
-   </MotiView>
+   </View>
 );
 
 const Key = ({ val, onPress, icon: Icon, color }: any) => (
@@ -121,13 +116,13 @@ export default function LoginScreen() {
                showsVerticalScrollIndicator={false}
             >
                <View style={styles.content}>
-                  <MotiView from={{ opacity: 0, translateY: -10 }} animate={{ opacity: 1, translateY: 0 }} style={styles.hero}>
+                <View style={styles.hero}>
                      <View style={styles.logoContainer}>
                         <Image source={require('../../../assets/images/icon.png')} style={styles.logoImage} resizeMode="contain" />
                      </View>
                      <TText style={styles.title}>Welcome Back</TText>
                      <TText style={styles.subtitle}>Enter security PIN to continue</TText>
-                  </MotiView>
+                  </View>
 
                   <View style={styles.pinContainer}>
                      {[0, 1, 2, 3].map((i) => (

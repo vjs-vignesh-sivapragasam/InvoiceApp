@@ -4,7 +4,7 @@ import {
   ChevronLeft,
   FileText
 } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { MotiView } from '@/components/MotiShim';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button } from '../../../components/Button';
