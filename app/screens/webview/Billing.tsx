@@ -355,18 +355,31 @@ export const Billing = () => {
               <TText style={{ textAlign: 'center', opacity: 0.6, marginTop: 10 }}>Are you sure you want to generate this {docType}? This will finalize the bill and update stock levels.</TText>
             </View>
 
-            <TView style={{ backgroundColor: colors.surfaceSecondary, padding: 20, borderRadius: 16, marginBottom: 30 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                <TText style={{ opacity: 0.6 }}>Client</TText>
-                <TText style={{ fontWeight: '800' }}>{selectedClient?.clientname}</TText>
+            <TView style={{ backgroundColor: colors.surfaceSecondary, padding: 25, borderRadius: 20, marginBottom: 30 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <TText style={{ opacity: 0.6, fontSize: 13 }}>Bill Reference</TText>
+                <TText style={{ fontWeight: '800' }}>{billNo}</TText>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                <TText style={{ opacity: 0.6 }}>Final Amount</TText>
-                <TText style={{ fontWeight: '900', color: COLORS.primary, fontSize: 18 }}>₹{calculateTotal().toLocaleString()}</TText>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <TText style={{ opacity: 0.6, fontSize: 13 }}>Bill Date</TText>
+                <TText style={{ fontWeight: '800' }}>{billDate}</TText>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <TText style={{ opacity: 0.6, fontSize: 13 }}>Tax Configuration</TText>
+                <TText style={{ fontWeight: '800', color: COLORS.primary }}>{gstEnabled ? `${billGST}% GST` : 'Non-GST'}</TText>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <TText style={{ opacity: 0.6, fontSize: 13 }}>Discount</TText>
+                <TText style={{ fontWeight: '800', color: COLORS.danger }}>{discount || '0'}%</TText>
+              </View>
+              <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 15, opacity: 0.3 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <TText style={{ opacity: 0.6, fontSize: 13 }}>Payment Method</TText>
+                <TText style={{ fontWeight: '800' }}>{paymentMethod}</TText>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <TText style={{ opacity: 0.6 }}>Payment Method</TText>
-                <TText style={{ fontWeight: '800' }}>{paymentMethod}</TText>
+                <TText style={{ fontWeight: '700', fontSize: 15 }}>TOTAL PAYABLE</TText>
+                <TText style={{ fontWeight: '900', color: COLORS.primary, fontSize: 22 }}>₹{calculateTotal().toLocaleString()}</TText>
               </View>
             </TView>
 
@@ -417,7 +430,7 @@ const styles = StyleSheet.create({
   webFinishBtn: { height: 64, borderRadius: 18, overflow: 'hidden' },
   webFinishGrad: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 15 },
   webPreviewBtn: { height: 50, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.primary + '20', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 10 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
   webPreviewModal: { width: '90%', height: '90%', borderRadius: 24, overflow: 'hidden' },
   previewHead: { height: 80, paddingHorizontal: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#eee' },
   webDropdown: { position: 'absolute', top: 55, left: 0, right: 0, zIndex: 100, borderRadius: 16, padding: 10, borderWidth: 1 },

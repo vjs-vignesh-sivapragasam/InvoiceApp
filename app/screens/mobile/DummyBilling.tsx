@@ -514,12 +514,29 @@ const DummyBilling = () => {
 
             <TView style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 15, borderRadius: 16, marginBottom: 25 }}>
                <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <TText style={{ fontSize: 12, opacity: 0.6 }}>Net Payable</TText>
-                  <TText style={{ fontSize: 16, fontWeight: '900', color: COLORS.primary }}>₹{calculateTotal().toLocaleString()}</TText>
+                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Bill Number</TText>
+                  <TText style={{ fontSize: 11, fontWeight: '800' }}>{billNo}</TText>
+               </TView>
+               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Billing Date</TText>
+                  <TText style={{ fontSize: 11, fontWeight: '800' }}>{billDate}</TText>
+               </TView>
+               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Tax Logic</TText>
+                  <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.primary }}>{gstEnabled ? `${billGST}% GST` : 'Non-GST'}</TText>
+               </TView>
+               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Discount</TText>
+                  <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.danger }}>{discount || '0'}%</TText>
+               </TView>
+               <TView style={{ height: 1, backgroundColor: colors.border, marginVertical: 8, opacity: 0.2 }} />
+               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Series Mode</TText>
+                  <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.secondary }}>MANUAL/DUMMY</TText>
                </TView>
                <TView style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <TText style={{ fontSize: 12, opacity: 0.6 }}>Series Status</TText>
-                  <TText style={{ fontSize: 12, fontWeight: '800', color: COLORS.secondary }}>MANUAL ENTRY</TText>
+                  <TText style={{ fontSize: 13, fontWeight: '700' }}>TOTAL PAYABLE</TText>
+                  <TText style={{ fontSize: 16, fontWeight: '900', color: COLORS.primary }}>₹{calculateTotal().toLocaleString()}</TText>
                </TView>
             </TView>
 
@@ -604,7 +621,7 @@ const styles = StyleSheet.create({
   billFinishBtn: { flex: 1, height: 52, borderRadius: 16, overflow: 'hidden', ...SHADOWS.md },
   billFinishGrad: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   billFinishText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
-  centeredModal: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  centeredModal: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
   modalSheet: { width: '100%', height: '70%', borderRadius: 30, overflow: 'hidden' },
   modalTitleRow: { height: 65, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, borderBottomWidth: 1 },
   modalTitle: { fontWeight: '900', fontSize: 18 },
