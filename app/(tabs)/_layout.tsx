@@ -16,7 +16,7 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
-          height: 70,
+          height: 90,
           paddingBottom: 10,
           display: Platform.OS === 'web' ? 'none' : 'flex',
         },
