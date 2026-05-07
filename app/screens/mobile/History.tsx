@@ -126,6 +126,7 @@ export default function HistoryScreen() {
               </div>
               <div class="invoice-title">
                 <h2>INVOICE</h2>
+                ${item.optional1 === 'DUMMY' ? '<div style="background: #FFFBEB; color: #D97706; font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 5px; border: 1px solid #FCD34D;">DUMMY BILL</div>' : ''}
                 <p style="margin-top: 10px; font-weight: 900; font-size: 18px;"># ${item.billno}</p>
                 <p style="font-size: 12px; color: #64748B;">Date: ${item.billdate}</p>
               </div>
@@ -249,7 +250,14 @@ export default function HistoryScreen() {
           <FileText size={18} color={COLORS.primary} />
         </TView>
         <TView style={{ flex: 1, marginLeft: 15 }}>
-          <TText style={{ fontWeight: '800', fontSize: 16 }}>{item.clientdetails?.clientname || 'Walk-in Client'}</TText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TText style={{ fontWeight: '800', fontSize: 16 }}>{item.clientdetails?.clientname || 'Walk-in Client'}</TText>
+            {item.optional1 === 'DUMMY' && (
+              <View style={{ backgroundColor: COLORS.warning + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <TText style={{ color: COLORS.warning, fontSize: 8, fontWeight: '900' }}>DUMMY</TText>
+              </View>
+            )}
+          </View>
           <TText variant="caption">{item.billno || `#${item.billingid}`}</TText>
         </TView>
         <TView style={{ flexDirection: 'row', gap: 8 }}>
@@ -344,7 +352,14 @@ export default function HistoryScreen() {
       <Modal visible={previewVisible} animationType="slide">
         <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
           <TView style={styles.modalHeader}>
-            <TText style={{ fontWeight: '900', color: '#000' }}>INVOICE PREVIEW</TText>
+            <TView style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TText style={{ fontWeight: '900', color: '#000' }}>INVOICE PREVIEW</TText>
+              {selectedBill?.optional1 === 'DUMMY' && (
+                <View style={{ backgroundColor: COLORS.warning + '20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                  <TText style={{ color: COLORS.warning, fontSize: 10, fontWeight: '900' }}>DUMMY BILLING</TText>
+                </View>
+              )}
+            </TView>
             <TouchableOpacity onPress={() => setPreviewVisible(false)} style={styles.closeBtn}>
               <X size={24} color="#000" />
             </TouchableOpacity>

@@ -197,7 +197,7 @@ const DummyBilling = () => {
         discamount: calcs.discAmount,
         isactive: true,
         billdate: billDate,
-        optional1: discount,
+        optional1: 'DUMMY',
         paymentmethod: paymentMethod,
         iswithgst: gstEnabled,
         productid: items[0].productid,

@@ -79,7 +79,14 @@ export const History = () => {
 
         {transactions.map((row) => (
           <View key={row.billingid} style={[styles.tableRow, { borderBottomColor: colors.border }]}>
-            <TText style={[styles.col, { flex: 1.5, fontWeight: '700' }]} variant="body">{row.billno || `INV-${row.billingid}`}</TText>
+            <View style={[styles.col, { flex: 1.5, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+              <TText style={{ fontWeight: '700' }} variant="body">{row.billno || `INV-${row.billingid}`}</TText>
+              {row.optional1 === 'DUMMY' && (
+                <View style={{ backgroundColor: COLORS.warning + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                  <TText style={{ color: COLORS.warning, fontSize: 10, fontWeight: '900' }}>DUMMY</TText>
+                </View>
+              )}
+            </View>
             <View style={[styles.col, { flex: 2, flexDirection: 'row', alignItems: 'center' }]}>
               <TView style={[styles.avatar, { backgroundColor: colors.surfaceSecondary }]}>
                 <FileText size={14} color={COLORS.primary} />
