@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { ChevronLeft, Download, Eye, FileText, Filter, Search, X } from 'lucide-react-native';
+import { ChevronLeft, Download, Eye, FileText, Filter, Search, Share2, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Design1 } from '../../../components/templates/Design1';
@@ -41,26 +41,32 @@ export default function HistoryScreen() {
       ]);
       setTransactions(data);
 
+      setTransactions(data);
+
+      // Map DB fields to application business profile format
+      const loadProfile = (prof: any) => ({
+        name: prof.companyName || prof.optional1 || prof.name || 'MK AGENCY',
+        ownerName: prof.ownerName || prof.username || '',
+        address: prof.address || prof.addressline1 || prof.AddressLine1 || '',
+        address2: prof.address2 || prof.addressline2 || prof.AddressLine2 || '',
+        landmark: prof.landmark || prof.Landmark || '',
+        pincode: prof.pincode || prof.Pincode || '',
+        mobile: prof.mobile || prof.Mobile || '',
+        altMobile: prof.altMobile || prof.mobile2 || prof.Mobile2 || '',
+        email: prof.email || prof.emailid || prof.EmailID || '',
+        gstin: prof.gstin || prof.GSTIN || '',
+        bankName: prof.bankName || prof.bankaccountname || prof.BankAccountName || '',
+        accountNo: prof.accountNo || prof.accountno || prof.AccountNo || '',
+        ifsc: prof.ifsc || prof.IFSC || '',
+      });
+
       if (dbProfile) {
-        // Map DB fields to application business profile format
-        const formattedProfile = {
-          businessName: dbProfile.optional1 || 'INVOICE APP',
-          ownerName: dbProfile.username || '',
-          email: dbProfile.emailid || '',
-          mobile: dbProfile.mobile || '',
-          mobile2: dbProfile.mobile2 || '',
-          address: dbProfile.addressline1 || '',
-          address2: dbProfile.addressline2 || '',
-          landmark: dbProfile.landmark || '',
-          pincode: dbProfile.pincode || '',
-          gstin: dbProfile.gstin || '',
-          bankName: dbProfile.bankaccountname || '',
-          accountNo: dbProfile.accountno || '',
-          ifsc: dbProfile.ifsc || ''
-        };
-        setBusinessProfile(formattedProfile);
+        setBusinessProfile(loadProfile(dbProfile));
+        await AsyncStorage.setItem('business_profile', JSON.stringify(dbProfile));
       } else if (profile) {
-        setBusinessProfile(JSON.parse(profile));
+        setBusinessProfile(loadProfile(JSON.parse(profile)));
+      } else {
+        setBusinessProfile({ name: 'MK AGENCY', address: '6, 1st cross, Puducherry', mobile: '+91 9791858965', gstin: '34CEBPG0848B1Z5' });
       }
     } catch (error) {
       console.error('History fetch error:', error);
@@ -83,149 +89,136 @@ export default function HistoryScreen() {
     return clientName.includes(search.toLowerCase()) || billNo.includes(search.toLowerCase());
   });
 
-  const handleDownloadPDF = async (item: any) => {
+  const getHTML = (item: any) => `
+    <html>
+      <head>
+        <style>
+          body { font-family: 'Helvetica', sans-serif; color: #333; padding: 20px; }
+          .invoice-box { border: 2px solid #000; padding: 15px; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .business-info h1 { margin: 0; font-size: 22px; font-weight: 900; text-transform: uppercase; }
+          .business-info p { margin: 1px 0; font-size: 10px; font-weight: 600; }
+          .center-col { text-align: center; flex: 1.2; }
+          .tax-badge { background: #eee; border: 1px solid #000; padding: 5px 15px; display: inline-block; font-weight: 900; font-size: 13px; margin-bottom: 10px; }
+          .meta-box { border: 1px solid #000; padding: 3px 8px; font-size: 10px; font-weight: 800; text-align: left; width: 160px; margin: 0 auto 2px; }
+          .right-col { text-align: right; }
+          .table { width: 100%; border: 1px solid #000; border-collapse: collapse; margin-top: 15px; }
+          .table th { background: #eee; border: 1px solid #000; padding: 5px; font-size: 10px; font-weight: 900; }
+          .table td { border: 1px solid #000; padding: 5px; font-size: 10px; text-align: center; }
+          .totals-section { display: flex; justify-content: flex-end; margin-top: 5px; }
+          .summary-row { display: flex; width: 220px; border: 1px solid #000; padding: 4px; justify-content: space-between; font-size: 10px; font-weight: 800; margin-top: -1px; }
+          .footer { display: flex; justify-content: space-between; margin-top: 30px; align-items: flex-end; }
+          .bank-box { border: 1px solid #000; width: 300px; }
+          .bank-head { background: #eee; border-bottom: 1px solid #000; padding: 4px; font-size: 10px; font-weight: 900; text-align: center; }
+          .bank-row { display: flex; font-size: 9px; padding: 2px 4px; }
+          .bank-label { flex: 1; font-weight: 700; }
+          .sig-box { text-align: right; }
+          .sig-agency { background: #eee; padding: 5px 15px; font-weight: 900; font-size: 11px; margin-bottom: 40px; border: 1px solid #000; }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-box">
+          <div class="header">
+            <div class="business-info" style="flex: 1;">
+              <h1>${businessProfile?.name || 'MK AGENCY'}</h1>
+              <p>${businessProfile?.address || ''}</p>
+              <p>Mobile: ${businessProfile?.mobile || '-'}</p>
+              <p>GSTIN: ${businessProfile?.gstin || '-'}</p>
+            </div>
+            <div class="center-col">
+              <div class="tax-badge">TAX INVOICE</div>
+              <div class="meta-box">BILL NO: ${item.billno}</div>
+              <div class="meta-box">DATE: ${item.billdate}</div>
+            </div>
+            <div class="right-col" style="flex: 1;">
+              <p style="font-size: 16px; font-weight: 800; margin-bottom: 5px;">To, ${item.clientdetails?.clientname || '-'}</p>
+              <p style="font-size: 9px;">${item.clientdetails?.addressline1 || '-'}</p>
+              <p style="font-size: 9px;">GSTIN: ${item.clientdetails?.gstin || '-'}</p>
+            </div>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Sl.No</th>
+                <th style="text-align: left; width: 25%;">Particulars</th>
+                <th>HSN</th>
+                <th>Box</th>
+                <th>Pieces</th>
+                <th>S.Price</th>
+                <th>Disc</th>
+                <th>CGST</th>
+                <th>SGST</th>
+                <th>Rate</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td style="text-align: left; font-weight: 700;">${item.products?.productname || 'Goods/Services'}</td>
+                <td>${item.products?.hsn || '0000'}</td>
+                <td>${item.box || '0'}</td>
+                <td>${item.pieces || '0'}</td>
+                <td>₹${(item.rate || 0).toLocaleString()}</td>
+                <td>${item.disperc}% - ₹${item.discamount?.toFixed(2)}</td>
+                <td>₹${(item.cgstamount || 0).toFixed(2)}</td>
+                <td>₹${(item.sgstamount || 0).toFixed(2)}</td>
+                <td>₹${(item.rate || 0).toLocaleString()}</td>
+                <td style="text-align: right; font-weight: 700;">₹${item.totalamount?.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display: flex; justify-content: space-between; margin-top: 10px; background: #eee; border: 1px solid #000; padding: 4px; font-size: 10px; font-weight: 800;">
+            <div>TOTAL QTY: ${item.box || '0'}</div>
+            <div>TOTAL AMOUNT: ₹${item.totalamount?.toLocaleString()}</div>
+          </div>
+
+          <div class="totals-section">
+            <div>
+              <div class="summary-row"><span>TOTAL BEFORE TAX:</span><span>₹${(item.taxableamount || 0).toLocaleString()}</span></div>
+              <div class="summary-row"><span>TOTAL AFTER TAX:</span><span>₹${(item.totalamount || 0).toLocaleString()}</span></div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="bank-box">
+              <div class="bank-head">BANK DETAILS</div>
+              <div class="bank-row"><span class="bank-label">Bank:</span><span>${businessProfile?.bankName || '-'}</span></div>
+              <div class="bank-row"><span class="bank-label">A/C:</span><span>${businessProfile?.accountNo || '-'}</span></div>
+              <div class="bank-row"><span class="bank-label">IFSC:</span><span>${businessProfile?.ifsc || '-'}</span></div>
+            </div>
+            <div class="sig-box">
+              <div class="sig-agency">FOR ${businessProfile?.name || 'MK AGENCY'}</div>
+              <p style="font-size: 10px; font-weight: 700;">Authorised Signatory</p>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const handlePrintPDF = async (item: any) => {
     setDownloading(item.billno);
     try {
-      const html = `
-        <html>
-          <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-            <style>
-              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; padding: 40px; line-height: 1.4; }
-              .header { display: flex; justify-content: space-between; border-bottom: 3px solid #6366F1; padding-bottom: 25px; }
-              .business-info h1 { margin: 0; color: #6366F1; font-size: 26px; font-weight: 900; }
-              .business-info p { margin: 2px 0; font-size: 11px; color: #475569; font-weight: 600; }
-              .invoice-title { text-align: right; }
-              .invoice-title h2 { margin: 0; font-size: 32px; color: #1E293B; font-weight: 900; }
-              .details { display: flex; justify-content: space-between; margin-top: 40px; }
-              .details-box h3 { font-size: 9px; color: #64748B; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; font-weight: 800; }
-              .details-box p { margin: 0; font-size: 14px; font-weight: 800; color: #1E293B; }
-              .table { width: 100%; border-collapse: collapse; margin-top: 40px; }
-              .table th { background: #F8FAFC; text-align: left; padding: 15px; font-size: 10px; color: #64748B; text-transform: uppercase; border-bottom: 2px solid #E2E8F0; font-weight: 800; }
-              .table td { padding: 15px; font-size: 14px; border-bottom: 1px solid #F1F5F9; color: #334155; }
-              .totals { margin-top: 40px; width: 300px; margin-left: auto; }
-              .total-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; }
-              .total-row.grand { border-top: 3px solid #6366F1; margin-top: 15px; padding-top: 20px; }
-              .total-row.grand p { font-size: 24px; color: #6366F1; font-weight: 900; margin: 0; }
-              .bank-details { margin-top: 50px; padding: 20px; background: #F8FAFC; border-radius: 12px; border: 1px dashed #CBD5E1; width: 60%; }
-              .bank-details h4 { margin: 0 0 10px 0; font-size: 10px; color: #6366F1; text-transform: uppercase; letter-spacing: 1px; }
-              .bank-details p { margin: 3px 0; font-size: 11px; color: #475569; font-weight: 700; }
-              .footer { margin-top: 100px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E2E8F0; padding-top: 30px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <div class="business-info">
-                <h1>${businessProfile?.businessName || 'INVOICE APP'}</h1>
-                <p>Prop: ${businessProfile?.ownerName || ''}</p>
-                <p>${businessProfile?.address || ''}${businessProfile?.address2 ? ', ' + businessProfile?.address2 : ''}</p>
-                <p>${businessProfile?.landmark ? businessProfile?.landmark + ', ' : ''}${businessProfile?.pincode ? 'PIN: ' + businessProfile?.pincode : ''}</p>
-                <p>Contact: ${businessProfile?.mobile || ''}${businessProfile?.mobile2 ? ' / ' + businessProfile?.mobile2 : ''}</p>
-                <p>Email: ${businessProfile?.email || ''}</p>
-                <p style="margin-top: 5px; color: #6366F1;">GSTIN: ${businessProfile?.gstin || 'N/A'}</p>
-              </div>
-              <div class="invoice-title">
-                <h2>INVOICE</h2>
-                ${item.optional1 === 'DUMMY' ? '<div style="background: #FFFBEB; color: #D97706; font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 5px; border: 1px solid #FCD34D;">DUMMY BILL</div>' : ''}
-                <p style="margin-top: 10px; font-weight: 900; font-size: 18px;"># ${item.billno}</p>
-                <p style="font-size: 12px; color: #64748B;">Date: ${item.billdate}</p>
-              </div>
-            </div>
+      const html = getHTML(item);
+      await Print.printAsync({ html });
+    } catch (error) {
+      console.error('Print error:', error);
+    } finally {
+      setDownloading(null);
+    }
+  };
 
-            <div class="details">
-              <div class="details-box">
-                <h3>Bill To</h3>
-                <p>${item.clientdetails?.clientname || 'General Customer'}</p>
-                <p style="font-weight: 500; font-size: 12px; margin-top: 5px; color: #64748B;">
-                  ${item.clientdetails?.addressline1 || ''}<br/>
-                  ${item.clientdetails?.addressline2 || ''}
-                </p>
-                ${item.clientdetails?.gstin ? `<p style="font-size: 11px; color: #6366F1; margin-top: 5px;">GSTIN: ${item.clientdetails.gstin}</p>` : ''}
-              </div>
-              <div class="details-box" style="text-align: right;">
-                <h3>Payment Status</h3>
-                <p style="color: ${item.isactive ? '#10B981' : '#F59E0B'}">${item.isactive ? 'PAID' : 'VOID'}</p>
-              </div>
-            </div>
-
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Particulars</th>
-                  <th style="text-align: center;">HSN</th>
-                  <th style="text-align: center;">Box</th>
-                  <th style="text-align: center;">Pieces</th>
-                  <th style="text-align: right;">Rate</th>
-                  <th style="text-align: right;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>${item.products?.productname || 'Goods/Services'}</td>
-                  <td style="text-align: center;">${item.products?.hsn || '0000'}</td>
-                  <td style="text-align: center;">${item.box || '0'}</td>
-                  <td style="text-align: center;">${item.pieces || '0'}</td>
-                  <td style="text-align: right;">₹${(item.rate || 0).toLocaleString()}</td>
-                  <td style="text-align: right; font-weight: 700;">₹${item.totalamount?.toLocaleString()}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div class="bank-details">
-                <h4>Bank Account Details</h4>
-                <p>BANK: ${businessProfile?.bankName || 'N/A'}</p>
-                <p>A/C NO: ${businessProfile?.accountNo || 'N/A'}</p>
-                <p>IFSC: ${businessProfile?.ifsc || 'N/A'}</p>
-              </div>
-
-              <div class="totals">
-                <div class="total-row">
-                  <span>Subtotal</span>
-                  <span>₹${(item.taxableamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                ${item.discamount > 0 ? `
-                  <div class="total-row">
-                    <span>Discount (${item.disperc}%)</span>
-                    <span style="color: #EF4444;">- ₹${item.discamount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                ` : ''}
-                ${item.iswithgst ? `
-                  <div class="total-row">
-                    <span>CGST</span>
-                    <span>₹${(item.cgstamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div class="total-row">
-                    <span>SGST</span>
-                    <span>₹${(item.sgstamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                ` : ''}
-                ${item.optional2 ? `
-                  <div class="total-row">
-                    <span>Adjustment</span>
-                    <span>₹${parseFloat(item.optional2).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                ` : ''}
-                <div class="total-row grand">
-                  <p>Grand Total</p>
-                  <p>₹${(item.totalamount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="footer">
-              <p style="font-weight: 800; color: #475569; margin-bottom: 5px;">Thank you for your business!</p>
-              <p>This is a computer generated invoice. No signature required.</p>
-              <p style="margin-top: 10px;">Generated via InvoiceApp Terminal</p>
-            </div>
-          </body>
-        </html>
-      `;
+  const handleSharePDF = async (item: any) => {
+    setDownloading(item.billno);
+    try {
+      const html = getHTML(item);
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (error) {
-      console.error('PDF Generation error:', error);
-      alert('Failed to generate PDF');
+      console.error('Share error:', error);
     } finally {
       setDownloading(null);
     }
@@ -260,22 +253,29 @@ export default function HistoryScreen() {
           </View>
           <TText variant="caption">{item.billno || `#${item.billingid}`}</TText>
         </TView>
-        <TView style={{ flexDirection: 'row', gap: 8 }}>
+        <TView style={{ flexDirection: 'row', gap: 6 }}>
           <TouchableOpacity
             onPress={() => { setSelectedBill(item); setPreviewVisible(true); }}
             style={[styles.downloadBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}
           >
-            <Eye size={18} color={COLORS.primary} />
+            <Eye size={16} color={COLORS.primary} />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => handleDownloadPDF(item)}
+            onPress={() => handleSharePDF(item)}
+            disabled={!!downloading}
+            style={[styles.downloadBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}
+          >
+            <Share2 size={16} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handlePrintPDF(item)}
             disabled={!!downloading}
             style={[styles.downloadBtn, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : '#F1F5F9' }]}
           >
             {downloading === item.billno ? (
               <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
-              <Download size={18} color={COLORS.primary} />
+              <Download size={16} color={COLORS.primary} />
             )}
           </TouchableOpacity>
         </TView>
@@ -370,21 +370,7 @@ export default function HistoryScreen() {
                 {selectedBill && (
                   <Design1
                     data={{
-                      business: {
-                        name: businessProfile?.businessName || 'INVOICE APP',
-                        ownerName: businessProfile?.ownerName || '',
-                        address: businessProfile?.address || '',
-                        address2: businessProfile?.address2 || '',
-                        landmark: businessProfile?.landmark || '',
-                        pincode: businessProfile?.pincode || '',
-                        mobile: businessProfile?.mobile || '',
-                        altMobile: businessProfile?.mobile2 || '',
-                        email: businessProfile?.email || '',
-                        gstin: businessProfile?.gstin || '',
-                        bankName: businessProfile?.bankName || '',
-                        accountNo: businessProfile?.accountNo || '',
-                        ifsc: businessProfile?.ifsc || '',
-                      },
+                      business: businessProfile || {},
                       client: selectedBill.clientdetails || { clientname: 'Guest Client' },
                       billNo: selectedBill.billno,
                       billDate: selectedBill.billdate,
@@ -395,15 +381,15 @@ export default function HistoryScreen() {
                           box: selectedBill.box?.toString() || '0',
                           pieces: selectedBill.pieces?.toString() || '0',
                           price: (selectedBill.rate || 0).toString(),
-                          disc: selectedBill.disperc ? `${selectedBill.disperc}% - ${selectedBill.discamount?.toFixed(2)}` : '0% - 0.00',
+                          disc: selectedBill.disperc ? `${selectedBill.disperc}% - ₹${selectedBill.discamount?.toFixed(2)}` : '0% - ₹0.00',
                           cgst: (selectedBill.cgstamount || 0).toFixed(2),
                           sgst: (selectedBill.sgstamount || 0).toFixed(2),
-                          rate: (selectedBill.rate || 0).toString(),
+                          rate: (selectedBill.totalamount / ((selectedBill.box * selectedBill.pieces) || 1)).toFixed(2),
                           amount: selectedBill.totalamount?.toFixed(2)
                         }
                       ],
                       summary: {
-                        totalQty: '1',
+                        totalQty: selectedBill.box?.toString() || '0',
                         beforeTax: (selectedBill.taxableamount || (selectedBill.totalamount - (selectedBill.gstamount || 0))).toFixed(2),
                         totalAmount: selectedBill.totalamount?.toFixed(2),
                         afterTax: selectedBill.totalamount?.toFixed(2)
@@ -444,7 +430,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center' },
   typeIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   moreBtn: { padding: 5 },
-  downloadBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  downloadBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   divider: { height: 1, marginVertical: 15 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   paymentBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 },

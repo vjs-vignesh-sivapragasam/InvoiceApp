@@ -49,14 +49,15 @@ export const Billing = () => {
   const [docType, setDocType] = useState<'invoice' | 'quotation'>('invoice');
   const [gstEnabled, setGstEnabled] = useState(true);
   const [billGST, setBillGST] = useState('12');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT' | 'GPAY'>('CASH');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT' | 'GPAY' | 'CARD'>('CASH');
 
-  const [items, setItems] = useState<Item[]>([{ id: Date.now(), productid: null, name: '', qty: '1', price: '0', hsn: '', incase: '1', pieces: '1' }]);
+  const [items, setItems] = useState<Item[]>([{ id: Date.now(), productid: null, name: '', qty: '1', price: '0', hsn: '', incase: '-', pieces: '-' }]);
   const [adjustment, setAdjustment] = useState('0');
   const [discount, setDiscount] = useState('0');
   const [productSearch, setProductSearch] = useState('');
   const [activeProductIdIndex, setActiveProductIdIndex] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [businessProfile, setBusinessProfile] = useState<any>(null);
 
   const gstOptions = ['2', '8', '9', '12', '18'];
 
@@ -66,18 +67,46 @@ export const Billing = () => {
 
   const fetchInitialData = async () => {
     try {
-      const [c, p, nextBill] = await Promise.all([
+      const [c, p, nextBill, dbProfile, profile] = await Promise.all([
         db.clients.getAll(),
         db.products.getWithStock(),
-        db.billSeries.getNextBillNo(1)
+        db.billSeries.getNextBillNo(1),
+        db.users.getProfile(1).catch(() => null),
+        AsyncStorage.getItem('business_profile')
       ]);
+
       setClients(c);
       setProducts(p);
       setBillNo(nextBill);
+
+      const loadProfile = (prof: any) => ({
+        name: prof.companyName || prof.optional1 || prof.name || 'MK AGENCY',
+        ownerName: prof.ownerName || prof.username || '',
+        address: prof.address || prof.addressline1 || prof.AddressLine1 || '',
+        address2: prof.address2 || prof.addressline2 || prof.AddressLine2 || '',
+        landmark: prof.landmark || prof.Landmark || '',
+        pincode: prof.pincode || prof.Pincode || '',
+        mobile: prof.mobile || prof.Mobile || '',
+        altMobile: prof.altMobile || prof.mobile2 || prof.Mobile2 || '',
+        email: prof.email || prof.emailid || prof.EmailID || '',
+        gstin: prof.gstin || prof.GSTIN || '',
+        bankName: prof.bankName || prof.bankaccountname || prof.BankAccountName || '',
+        accountNo: prof.accountNo || prof.accountno || prof.AccountNo || '',
+        ifsc: prof.ifsc || prof.IFSC || '',
+      });
+
+      if (dbProfile) {
+        setBusinessProfile(loadProfile(dbProfile));
+        await AsyncStorage.setItem('business_profile', JSON.stringify(dbProfile));
+      } else if (profile) {
+        setBusinessProfile(loadProfile(JSON.parse(profile)));
+      } else {
+        setBusinessProfile({ name: 'MK AGENCY', address: '6, 1st cross, Puducherry', mobile: '+91 9791858965', gstin: '34CEBPG0848B1Z5' });
+      }
     } catch { } finally { setLoading(false); }
   };
 
-  const addItem = () => { setItems([...items, { id: Date.now(), productid: null, name: '', qty: '1', price: '0', hsn: '', incase: '1', pieces: '1' }]); setIsItemsExpanded(true); };
+  const addItem = () => { setItems([...items, { id: Date.now(), productid: null, name: '', qty: '1', price: '0', hsn: '', incase: '-', pieces: '-' }]); setIsItemsExpanded(true); };
   const removeItem = (id: number) => items.length > 1 && setItems(items.filter(i => i.id !== id));
 
   const updateItem = (id: number, field: string, value: any) => {
@@ -87,7 +116,14 @@ export const Billing = () => {
 
       if (field === 'productid') {
         const p = products.find(x => x.productid === value);
-        updated.productid = value; updated.name = p?.productname || ''; updated.price = p?.sellingprice?.toString() || '0'; updated.hsn = p?.hsn || ''; updated.incase = p?.incase?.toString() || '1';
+        updated.productid = value;
+        updated.name = p?.productname || '';
+        updated.price = p?.sellingprice?.toString() || '0';
+        updated.hsn = p?.hsn || '';
+        // incase (DB) = box unit display value (e.g. 1)
+        updated.incase = (p?.incase ?? '-').toString();
+        // pieces (DB) = pieces per box (e.g. 24)
+        updated.pieces = (p?.pieces ?? '-').toString();
 
         const availableStock = (p as any)?.currentStock || 0;
         if (availableStock <= 0) showToast(`Warning: ${p?.productname} is out of stock!`, 'error');
@@ -102,15 +138,20 @@ export const Billing = () => {
             showToast(`Insufficient stock! Max available: ${availableStock}`, 'error');
             updated.qty = availableStock.toString();
           }
+          // pieces (DB) stays static
+          updated.pieces = (p?.pieces ?? '-').toString();
         }
       }
-
-      updated.pieces = ((parseFloat(updated.qty) || 0) * (parseFloat(updated.incase) || 1)).toString();
       return updated;
     }));
   };
 
-  const calculateSubtotal = () => items.reduce((acc, item) => acc + (parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0), 0);
+  const calculateSubtotal = () => items.reduce((acc, item) => {
+    const qty = parseFloat(item.qty) || 0;
+    const piecesPerBox = parseFloat(item.pieces) || 0;
+    const price = parseFloat(item.price) || 0;
+    return acc + (qty * piecesPerBox * price);
+  }, 0);
 
   const getCalculations = () => {
     const subtotal = calculateSubtotal();
@@ -202,7 +243,7 @@ export const Billing = () => {
 
   const resetForm = () => {
     setSelectedClient(null);
-    setItems([{ id: Date.now(), productid: null, name: '', qty: '1', price: '0', hsn: '', incase: '1', pieces: '1' }]);
+    setItems([{ id: Date.now(), productid: null, name: '', qty: '1', price: '0', hsn: '', incase: '-', pieces: '-' }]);
     setAdjustment('0');
     setDiscount('0');
     setGstEnabled(true);
@@ -215,14 +256,45 @@ export const Billing = () => {
   return (
     <WebLayout>
       <View style={styles.header}>
-        <View><TText variant="title">Billing Terminal (Web)</TText><TText variant="caption">Unified document and series management</TText></View>
-        <View style={{ flexDirection: 'row', gap: 16 }}>
-          <TView style={[styles.typeSwitcher, { backgroundColor: colors.card }]}>
-            <TouchableOpacity onPress={() => setDocType('invoice')} style={[styles.typeSlot, docType === 'invoice' && styles.activeSlot]}><TText style={[styles.slotLabel, docType === 'invoice' && { color: COLORS.primary }]}>INVOICE</TText></TouchableOpacity>
-            <TouchableOpacity onPress={() => setDocType('quotation')} style={[styles.typeSlot, docType === 'quotation' && styles.activeSlot]}><TText style={[styles.slotLabel, docType === 'quotation' && { color: COLORS.primary }]}>QUOTATION</TText></TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <TText variant="title" style={{ fontSize: 28, fontWeight: '900', textAlign: 'center' }}>Billing Terminal</TText>
+          <TText variant="caption" style={{ textAlign: 'center', opacity: 0.6 }}>Unified document and series management</TText>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 16, marginTop: 20, justifyContent: 'center' }}>
+          <TView style={[styles.typeSwitcher, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+            <TouchableOpacity 
+              onPress={() => setDocType('invoice')} 
+              style={[styles.typeSlot, docType === 'invoice' && { backgroundColor: COLORS.primary }]}
+            >
+              <TText style={[styles.slotLabel, docType === 'invoice' ? { color: '#fff' } : { color: colors.textSecondary }]}>INVOICE</TText>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setDocType('quotation')} 
+              style={[styles.typeSlot, docType === 'quotation' && { backgroundColor: COLORS.primary }]}
+            >
+              <TText style={[styles.slotLabel, docType === 'quotation' ? { color: '#fff' } : { color: colors.textSecondary }]}>QUOTATION</TText>
+            </TouchableOpacity>
           </TView>
-          <TView style={[styles.switchCard, { backgroundColor: colors.card, marginRight: 16 }]}><TText style={{ fontWeight: '800', fontSize: 13, marginRight: 15 }}>Payment</TText><View style={{ flexDirection: 'row', gap: 8 }}>{['CASH', 'CREDIT', 'GPAY'].map((m: any) => (<TouchableOpacity key={m} onPress={() => setPaymentMethod(m)} style={[styles.payChip, paymentMethod === m && { backgroundColor: COLORS.primary }]}><TText style={{ fontSize: 10, fontWeight: '900', color: paymentMethod === m ? '#fff' : colors.textSecondary }}>{m}</TText></TouchableOpacity>))}</View></TView>
-          <TView style={[styles.switchCard, { backgroundColor: colors.card }]}><TText style={{ fontWeight: '800', fontSize: 13, marginRight: 15 }}>GST Mode</TText><TouchableOpacity onPress={() => setGstEnabled(!gstEnabled)} style={[styles.webToggle, { backgroundColor: gstEnabled ? COLORS.primary : 'rgba(0,0,0,0.1)' }]}><View style={[styles.webToggleKnob, { marginLeft: gstEnabled ? 20 : 0 }]} /></TouchableOpacity></TView>
+          <TView style={[styles.switchCard, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+            <TText style={{ fontWeight: '800', fontSize: 12, marginRight: 15, opacity: 0.6 }}>Payment</TText>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {['CASH', 'CREDIT', 'GPAY', 'CARD'].map((m: any) => (
+                <TouchableOpacity 
+                  key={m} 
+                  onPress={() => setPaymentMethod(m)} 
+                  style={[styles.payChip, paymentMethod === m && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
+                >
+                  <TText style={{ fontSize: 10, fontWeight: '900', color: paymentMethod === m ? '#fff' : colors.textSecondary }}>{m}</TText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TView>
+          <TView style={[styles.switchCard, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+            <TText style={{ fontWeight: '800', fontSize: 12, marginRight: 15, opacity: 0.6 }}>GST Mode</TText>
+            <TouchableOpacity onPress={() => setGstEnabled(!gstEnabled)} style={[styles.webToggle, { backgroundColor: gstEnabled ? COLORS.primary : 'rgba(0,0,0,0.1)' }]}>
+              <View style={[styles.webToggleKnob, { marginLeft: gstEnabled ? 20 : 0 }]} />
+            </TouchableOpacity>
+          </TView>
         </View>
       </View>
 
@@ -239,8 +311,8 @@ export const Billing = () => {
                 <TView style={[styles.cardLayout, { backgroundColor: colors.card }]}>
                   <View style={{ flexDirection: 'row', gap: 20 }}>
                     <View style={{ flex: 1.5 }}><TText variant="caption" style={{ marginBottom: 10 }}>Client Selector</TText><View style={{ position: 'relative' }}><TouchableOpacity onPress={() => setIsClientDropdownOpen(!isClientDropdownOpen)} style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary }]}><TText style={{ fontWeight: '700' }}>{selectedClient ? selectedClient.clientname : 'Search Client...'}</TText><ChevronDown size={18} color={colors.textSecondary} /></TouchableOpacity>{isClientDropdownOpen && (<View style={[styles.webDropdown, { backgroundColor: colors.card, borderColor: colors.border, ...SHADOWS.lg }]}><TextInput placeholder="Filter..." value={clientSearch} onChangeText={setClientSearch} style={[styles.dropdownSearch, { backgroundColor: colors.surfaceSecondary }]} /><ScrollView style={{ maxHeight: 250 }}>{clients.filter(c => c.clientname.toLowerCase().includes(clientSearch.toLowerCase())).map(c => (<TouchableOpacity key={c.clientid} onPress={() => { setSelectedClient(c); setIsClientDropdownOpen(false); }} style={styles.dropdownOption}><TText style={{ fontWeight: '700' }}>{c.clientname}</TText></TouchableOpacity>))}</ScrollView></View>)}</View></View>
-                    <View style={{ flex: 1 }}><TText variant="caption" style={{ marginBottom: 10 }}>Bill No</TText><TView style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary, opacity: 0.6 }]}><TText style={{ fontWeight: '700' }}>{billNo}</TText></TView></View>
-                    <View style={{ flex: 1 }}><TText variant="caption" style={{ marginBottom: 10 }}>Date</TText><TView style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary }]}><TText style={{ fontWeight: '700' }}>{billDate}</TText></TView></View>
+                    <View style={{ flex: 1 }}><TText variant="caption" style={{ marginBottom: 10, fontWeight: '800', color: COLORS.primary }}>INVOICE NO</TText><TView style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary, opacity: 0.8 }]}><TText style={{ fontWeight: '700' }}>{billNo}</TText></TView></View>
+                    <View style={{ flex: 1 }}><TText variant="caption" style={{ marginBottom: 10, fontWeight: '800', color: COLORS.primary }}>BILL DATE</TText><TView style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary }]}><TText style={{ fontWeight: '700' }}>{billDate}</TText></TView></View>
                     <View style={{ flex: 1 }}>
                       <TText variant="caption" style={{ marginBottom: 10 }}>GST Rate</TText>
                       <View style={{ flexDirection: 'row', gap: 5 }}>{gstOptions.map(opt => (<TouchableOpacity key={opt} disabled={!gstEnabled} onPress={() => setBillGST(opt)} style={[styles.webGstChip, billGST === opt && gstEnabled && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }, !gstEnabled && { opacity: 0.3 }]}><TText style={{ fontSize: 11, fontWeight: '800', color: billGST === opt && gstEnabled ? '#fff' : colors.textSecondary }}>{opt}%</TText></TouchableOpacity>))}</View>
@@ -345,7 +417,48 @@ export const Billing = () => {
         </TView>
       </View>
 
-      <Modal visible={showPreview} transparent><View style={styles.modalOverlay}><MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.webPreviewModal}><View style={styles.previewHead}><TText variant="subtitle">Invoice Preview</TText><TouchableOpacity onPress={() => setShowPreview(false)}><X size={24} color={colors.text} /></TouchableOpacity></View><ScrollView contentContainerStyle={{ padding: 40, alignItems: 'center' }}><View style={{ width: 850, backgroundColor: '#fff', ...SHADOWS.lg }}><Design1 data={{ business: { name: 'MK AGENCY', address: '6, 1st cross, Puducherry', mobile: '+91 9791858965', gstin: '34CEBPG0848B1Z5' }, client: selectedClient || { name: '---' }, billNo: billNo || 'DRAFT', billDateId: billDate, withGST: gstEnabled, items: items.map(it => ({ name: it.name || '---', hsn: it.hsn || '-', box: it.qty || '0', pieces: it.pieces, price: it.price, cgst: '0', sgst: '0', rate: it.price, amount: (parseFloat(it.qty) * parseFloat(it.price)).toFixed(2) })), summary: { totalQty: items.length.toString(), totalAmount: calculateTotal().toFixed(2), beforeTax: calculateSubtotal().toFixed(2), afterTax: calculateTotal().toFixed(2) }, docType: docType }} /></View></ScrollView></MotiView></View></Modal>
+      <Modal visible={showPreview} transparent><View style={styles.modalOverlay}><MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.webPreviewModal}><View style={styles.previewHead}><TText variant="subtitle">Invoice Preview</TText><TouchableOpacity onPress={() => setShowPreview(false)}><X size={24} color={colors.text} /></TouchableOpacity></View><ScrollView contentContainerStyle={{ padding: 40, alignItems: 'center' }}><View style={{ width: 850, backgroundColor: '#fff', ...SHADOWS.lg }}><Design1 data={{ business: businessProfile ? {
+        name: businessProfile.companyName || businessProfile.optional1 || businessProfile.name || 'MK AGENCY',
+        ownerName: businessProfile.ownerName || businessProfile.username || '',
+        address: businessProfile.address || businessProfile.addressline1 || businessProfile.AddressLine1 || '',
+        address2: businessProfile.address2 || businessProfile.addressline2 || businessProfile.AddressLine2 || '',
+        landmark: businessProfile.landmark || businessProfile.Landmark || '',
+        pincode: businessProfile.pincode || businessProfile.Pincode || '',
+        mobile: businessProfile.mobile || businessProfile.Mobile || '',
+        altMobile: businessProfile.altMobile || businessProfile.mobile2 || businessProfile.Mobile2 || '',
+        email: businessProfile.email || businessProfile.emailid || businessProfile.EmailID || '',
+        gstin: businessProfile.gstin || businessProfile.GSTIN || '',
+        bankName: businessProfile.bankName || businessProfile.bankaccountname || businessProfile.BankAccountName || '',
+        accountNo: businessProfile.accountNo || businessProfile.accountno || businessProfile.AccountNo || '',
+        ifsc: businessProfile.ifsc || businessProfile.IFSC || '',
+      } : { name: 'MK AGENCY', address: '6, 1st cross, Puducherry', mobile: '+91 9791858965', gstin: '34CEBPG0848B1Z5' }, client: selectedClient || { clientname: '---' }, billNo: billNo || 'DRAFT', billDate: billDate, withGST: gstEnabled, items: items.map(it => {
+        const qty = parseFloat(it.qty) || 0;
+        const piecesPerBox = parseFloat(it.pieces) || 0;
+        const price = parseFloat(it.price) || 0;
+        const totalUnits = qty * piecesPerBox;
+        const baseAmount = totalUnits * price;
+
+        const discPerc = parseFloat(discount) || 0;
+        const discAmount = baseAmount * (discPerc / 100);
+        const taxable = baseAmount - discAmount;
+
+        const gstRate = gstEnabled ? parseFloat(billGST) : 0;
+        const gstTotal = taxable * (gstRate / 100);
+        const finalAmount = taxable + gstTotal;
+
+        return {
+          name: it.name || '---',
+          hsn: it.hsn || '-',
+          box: it.qty || '0',
+          pieces: it.pieces, // Units per box
+          price: it.price,  // Price per unit
+          disc: discPerc > 0 ? `${discPerc}% - ₹${discAmount.toFixed(2)}` : '-',
+          cgst: (gstTotal / 2).toFixed(2),
+          sgst: (gstTotal / 2).toFixed(2),
+          rate: (finalAmount / (totalUnits || 1)).toFixed(2),
+          amount: finalAmount.toFixed(2)
+        };
+      }), summary: { totalQty: items.length.toString(), totalAmount: calculateTotal().toFixed(2), beforeTax: calculateSubtotal().toFixed(2), afterTax: calculateTotal().toFixed(2) }, docType: docType }} /></View></ScrollView></MotiView></View></Modal>
       <Modal visible={showConfirmModal} transparent>
         <View style={styles.modalOverlay}>
           <MotiView from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={[styles.webPreviewModal, { width: 500, height: 'auto', padding: 40 }]}>
@@ -401,7 +514,7 @@ export const Billing = () => {
 };
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
+  header: { alignItems: 'center', marginBottom: 40 },
   typeSwitcher: { flexDirection: 'row', padding: 4, borderRadius: 12, ...SHADOWS.sm },
   typeSlot: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
   activeSlot: { backgroundColor: 'rgba(0,0,0,0.02)' },

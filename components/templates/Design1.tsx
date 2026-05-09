@@ -105,7 +105,7 @@ export const Design1: React.FC<{ data: InvoiceData }> = ({ data }) => {
         {/* Table Section */}
         <View style={styles.tableContainer}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.cellHeader, { flex: 0.5 }]}>S.No</Text>
+            <Text style={[styles.cellHeader, { flex: 0.5 }]}>Sl.No</Text>
             <Text style={[styles.cellHeader, { flex: 2.5 }]}>Particulars</Text>
             <Text style={[styles.cellHeader, { flex: 0.8 }]}>HSN</Text>
             <Text style={[styles.cellHeader, { flex: 0.7 }]}>Box</Text>
@@ -114,8 +114,8 @@ export const Design1: React.FC<{ data: InvoiceData }> = ({ data }) => {
             <Text style={[styles.cellHeader, { flex: 1.2 }]}>Disc</Text>
             <Text style={[styles.cellHeader, { flex: 1 }]}>CGST</Text>
             <Text style={[styles.cellHeader, { flex: 1 }]}>SGST</Text>
-            <Text style={[styles.cellHeader, { flex: 1 }]}>Net Rate</Text>
-            <Text style={[styles.cellHeader, { flex: 1.2, borderRightWidth: 0 }]}>Line Total</Text>
+            <Text style={[styles.cellHeader, { flex: 1 }]}>Rate</Text>
+            <Text style={[styles.cellHeader, { flex: 1.2, borderRightWidth: 0 }]}>Amount</Text>
           </View>
 
           {items.map((item, index) => (
@@ -125,12 +125,12 @@ export const Design1: React.FC<{ data: InvoiceData }> = ({ data }) => {
               <Text style={[styles.cell, { flex: 0.8 }]}>{item.hsn}</Text>
               <Text style={[styles.cell, { flex: 0.7 }]}>{item.box}</Text>
               <Text style={[styles.cell, { flex: 0.8 }]}>{item.pieces}</Text>
-              <Text style={[styles.cell, { flex: 1 }]}>{item.price}</Text>
-              <Text style={[styles.cell, { flex: 1.2 }]}>{item.disc || '0% - 0.00'}</Text>
-              <Text style={[styles.cell, { flex: 1 }]}>{item.cgst}</Text>
-              <Text style={[styles.cell, { flex: 1 }]}>{item.sgst}</Text>
-              <Text style={[styles.cell, { flex: 1 }]}>{item.rate}</Text>
-              <Text style={[styles.cell, { flex: 1.2, borderRightWidth: 0, textAlign: 'right' }]}>{item.amount}</Text>
+              <Text style={[styles.cell, { flex: 1 }]}>₹{item.price}</Text>
+              <Text style={[styles.cell, { flex: 1.2 }]}>{item.disc || '0% - ₹0.00'}</Text>
+              <Text style={[styles.cell, { flex: 1 }]}>₹{item.cgst}</Text>
+              <Text style={[styles.cell, { flex: 1 }]}>₹{item.sgst}</Text>
+              <Text style={[styles.cell, { flex: 1 }]}>₹{item.rate}</Text>
+              <Text style={[styles.cell, { flex: 1.2, borderRightWidth: 0, textAlign: 'right' }]}>₹{item.amount}</Text>
             </View>
           ))}
 
@@ -140,7 +140,7 @@ export const Design1: React.FC<{ data: InvoiceData }> = ({ data }) => {
             <Text style={[styles.totalValueCell, { flex: 0.8 }]}>{summary.totalQty}</Text>
             <View style={{ flex: 4.4 }} />
             <Text style={[styles.totalLabelCell, { flex: 2 }]}>TOTAL AMOUNT:</Text>
-            <Text style={[styles.totalValueCell, { flex: 1.2, borderRightWidth: 0, textAlign: 'right' }]}>{summary.totalAmount}</Text>
+            <Text style={[styles.totalValueCell, { flex: 1.2, borderRightWidth: 0, textAlign: 'right' }]}>₹{summary.totalAmount}</Text>
           </View>
         </View>
 
@@ -148,11 +148,11 @@ export const Design1: React.FC<{ data: InvoiceData }> = ({ data }) => {
         <View style={styles.summarySection}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>TOTAL AMOUNT BEFORE TAX:</Text>
-            <Text style={styles.summaryValue}>{summary.beforeTax}</Text>
+            <Text style={styles.summaryValue}>₹{summary.beforeTax}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>TOTAL AMOUNT AFTER TAX:</Text>
-            <Text style={styles.summaryValue}>{summary.afterTax}</Text>
+            <Text style={styles.summaryValue}>₹{summary.afterTax}</Text>
           </View>
         </View>
 

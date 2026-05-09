@@ -1,65 +1,81 @@
-import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator } from 'react-native';
 import { TView, TText, useTheme } from '../../../components/ThemedUI';
 import { WebLayout } from './WebLayout';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../../../theme';
-import { Hash, Save, Info, ChevronLeft } from 'lucide-react-native';
+import { COLORS, RADIUS, SHADOWS } from '../../../theme';
+import { Hash, Save, ChevronLeft, AlertCircle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAppConfig } from '../../../components/AppConfigProvider';
 import { db } from '../../../services/supabase';
 
 export const BillSeries = () => {
-  const { colors, isDark } = useTheme();
-  const { config, updateConfig } = useAppConfig();
+  const { colors } = useTheme();
+  const { updateConfig } = useAppConfig();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [hasTransactions, setHasTransactions] = React.useState(false);
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [hasTransactions, setHasTransactions] = useState(false);
 
-  const [localConfig, setLocalConfig] = useState({
-    prefix: config.billSeriesText,
-    delimiter: config.billSeriesDelimiter,
-    startingNumber: config.billSeriesNumber,
-  });
+  const [prefix, setPrefix] = useState('');
+  const [delimiter, setDelimiter] = useState('/');
+  const [startingNumber, setStartingNumber] = useState('');
+  const [currentCount, setCurrentCount] = useState(0);
 
-  React.useEffect(() => {
-    const checkTransactions = async () => {
-      try {
-        const data = await db.billing.getAll();
-        setHasTransactions(data.length > 0);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    checkTransactions();
-  }, []);
-
-  const startNum = localConfig.startingNumber || '';
-  const currentCount = parseInt(config.billSeriesCount) || 0;
-  const nextCount = (currentCount + 1).toString().padStart(2, '0');
-  const previewText = `${localConfig.prefix}${localConfig.delimiter}${startNum}${localConfig.delimiter}${nextCount}`;
-
-  const handleSave = async () => {
-    if (hasTransactions) return;
-
+  const fetchData = async () => {
     setLoading(true);
     try {
-      await db.billSeries.upsert(1, {
-        prefix: localConfig.prefix,
-        delimiter: localConfig.delimiter,
-        startingnumber: parseInt(localConfig.startingNumber) || 1
-      });
-      updateConfig({
-        billSeriesText: localConfig.prefix,
-        billSeriesDelimiter: localConfig.delimiter,
-        billSeriesNumber: localConfig.startingNumber
-      });
-      router.back();
+      const [dbData, transactions] = await Promise.all([
+        db.billSeries.get(1),
+        db.billing.getAll()
+      ]);
+      
+      setHasTransactions(transactions.length > 0);
+      
+      if (dbData) {
+        setPrefix(dbData.prefix || '');
+        setDelimiter(dbData.delimiter || '/');
+        setStartingNumber(dbData.startingnumber?.toString() || '');
+        setCurrentCount(dbData.currentcount || 0);
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const getPreview = () => {
+    const nextCount = (currentCount + 1).toString().padStart(2, '0');
+    return `${prefix}${delimiter}${startingNumber}${delimiter}${nextCount}`;
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await db.billSeries.upsert(1, {
+        prefix,
+        delimiter,
+        startingnumber: parseInt(startingNumber) || 1
+      });
+      updateConfig({
+        billSeriesText: prefix,
+        billSeriesDelimiter: delimiter,
+        billSeriesNumber: startingNumber
+      });
+      router.back();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <WebLayout><ActivityIndicator size="large" color={COLORS.primary} /></WebLayout>;
 
   return (
     <WebLayout>
@@ -69,68 +85,60 @@ export const BillSeries = () => {
            <TText style={{ marginLeft: 8, fontWeight: '600' }}>Back to Settings</TText>
         </TouchableOpacity>
         <TText variant="title" style={{ fontSize: 32, marginTop: 16 }}>Bill No Series</TText>
-        <TText variant="caption">Configure the automated sequence for your invoices</TText>
+        <TText variant="caption">Simple configuration for automated sequencing</TText>
       </TView>
-
-      {hasTransactions && (
-        <TView style={{ backgroundColor: COLORS.danger + '15', padding: 20, borderRadius: 12, marginBottom: 30, borderWidth: 1, borderColor: COLORS.danger + '30' }}>
-           <TText style={{ color: COLORS.danger, fontWeight: '800' }}>BILL SERIES LOCKED</TText>
-           <TText style={{ color: COLORS.danger, fontSize: 13, marginTop: 4 }}>Transactions already exist. To change the bill series order, you must first clear all billing data.</TText>
-        </TView>
-      )}
 
       <TView style={styles.contentGrid}>
         <TView style={{ flex: 1.5 }}>
           <TView style={[styles.card, { backgroundColor: colors.card, ...SHADOWS.sm }]}>
-            <TText variant="subtitle" style={{ marginBottom: 24 }}>Dynamic Configuration</TText>
+            <TText variant="subtitle" style={{ marginBottom: 24 }}>Series Settings</TText>
             
             <View style={styles.fieldGroup}>
               <TText style={styles.label}>Prefix Text</TText>
               <TextInput 
-                style={[styles.input, { color: hasTransactions ? colors.textSecondary : colors.text, borderColor: colors.border, backgroundColor: hasTransactions ? 'rgba(0,0,0,0.05)' : colors.surfaceSecondary }]}
-                value={localConfig.prefix}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: hasTransactions ? 'rgba(0,0,0,0.05)' : colors.surfaceSecondary }]}
+                value={prefix}
                 editable={!hasTransactions}
-                onChangeText={(v) => setLocalConfig({...localConfig, prefix: v})}
+                onChangeText={setPrefix}
               />
             </View>
 
             <View style={styles.fieldGroup}>
               <TText style={styles.label}>Delimiter</TText>
               <TextInput 
-                style={[styles.input, { color: hasTransactions ? colors.textSecondary : colors.text, borderColor: colors.border, backgroundColor: hasTransactions ? 'rgba(0,0,0,0.05)' : colors.surfaceSecondary }]}
-                value={localConfig.delimiter}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: hasTransactions ? 'rgba(0,0,0,0.05)' : colors.surfaceSecondary }]}
+                value={delimiter}
                 editable={!hasTransactions}
-                onChangeText={(v) => setLocalConfig({...localConfig, delimiter: v})}
+                onChangeText={setDelimiter}
               />
             </View>
 
             <View style={styles.fieldGroup}>
-              <TText style={styles.label}>Starting Number</TText>
+              <TText style={styles.label}>Starting Number/Year</TText>
               <TextInput 
-                style={[styles.input, { color: hasTransactions ? colors.textSecondary : colors.text, borderColor: colors.border, backgroundColor: hasTransactions ? 'rgba(0,0,0,0.05)' : colors.surfaceSecondary }]}
-                value={localConfig.startingNumber}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: hasTransactions ? 'rgba(0,0,0,0.05)' : colors.surfaceSecondary }]}
+                value={startingNumber}
                 keyboardType="numeric"
                 editable={!hasTransactions}
-                onChangeText={(v) => setLocalConfig({...localConfig, startingNumber: v})}
+                onChangeText={setStartingNumber}
               />
             </View>
 
             <View style={styles.fieldGroup}>
-              <TText style={styles.label}>Sequence Tracker</TText>
+              <TText style={styles.label}>Current Usage Count</TText>
               <TextInput 
-                style={[styles.input, { color: colors.textSecondary, borderColor: colors.border, backgroundColor: 'rgba(0,0,0,0.05)' }]}
-                value={config.billSeriesCount.toString().padStart(2, '0')}
+                style={[styles.input, { backgroundColor: 'rgba(0,0,0,0.05)' }]}
+                value={currentCount.toString().padStart(2, '0')}
                 editable={false}
               />
             </View>
 
             <TouchableOpacity 
               onPress={handleSave}
-              disabled={loading || hasTransactions}
-              style={[styles.saveBtn, { opacity: (loading || hasTransactions) ? 0.6 : 1 }]}
+              disabled={saving || hasTransactions}
+              style={[styles.saveBtn, { opacity: (saving || hasTransactions) ? 0.6 : 1 }]}
             >
-               <Save size={18} color="#fff" />
-               <TText style={{ color: '#fff', fontWeight: '800', marginLeft: 10 }}>{hasTransactions ? 'EDITING LOCKED' : 'SAVE CONFIGURATION'}</TText>
+               {saving ? <ActivityIndicator color="#fff" /> : <><Save size={18} color="#fff" /><TText style={{ color: '#fff', fontWeight: '800', marginLeft: 10 }}>SAVE CONFIGURATION</TText></>}
             </TouchableOpacity>
           </TView>
         </TView>
@@ -138,26 +146,25 @@ export const BillSeries = () => {
         <TView style={{ flex: 1 }}>
            <TView style={[styles.previewCard, { backgroundColor: COLORS.primary, ...SHADOWS.md }]}>
               <Hash size={24} color="#fff" />
-              <TText style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '900', marginTop: 16, letterSpacing: 2 }}>PROBABLE NEXT BILL</TText>
-              <TText style={{ color: '#fff', fontSize: 36, fontWeight: '900', marginTop: 10 }}>{previewText}</TText>
+              <TText style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '900', marginTop: 16, letterSpacing: 2 }}>LIVE PREVIEW</TText>
+              <TText style={{ color: '#fff', fontSize: 36, fontWeight: '900', marginTop: 10 }}>{getPreview()}</TText>
               <TView style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.2)', width: '100%', marginVertical: 20 }} />
-              <TText style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 20 }}>
-                This matches the template: <TText style={{ fontWeight: '900' }}>[PREFIX][DELIMITER][STARTING][DELIMITER][SEQUENCE]</TText>
+              <TText style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, textAlign: 'center' }}>
+                This is the format for your next generated bill.
               </TText>
            </TView>
 
-           <TView style={[styles.card, { backgroundColor: colors.card, ...SHADOWS.sm, marginTop: 24 }]}>
-              <TView style={{ flexDirection: 'row', gap: 12 }}>
-                 <Info size={20} color={COLORS.primary} />
-                 <TView style={{ flex: 1 }}>
-                    <TText style={{ fontWeight: '700' }}>Sequence Rules </TText>
-                    <TText variant="caption" style={{ marginTop: 4 }}>
-                      The current running count is <TText style={{ fontWeight: '900', color: COLORS.primary }}>{config.billSeriesCount}</TText>. 
-                      This number increments automatically with every successfully generated invoice.
-                    </TText>
-                 </TView>
-              </TView>
-           </TView>
+           {hasTransactions && (
+             <TView style={[styles.card, { backgroundColor: COLORS.danger + '10', marginTop: 24, borderColor: COLORS.danger + '30', borderWidth: 1 }]}>
+                <TView style={{ flexDirection: 'row', gap: 12 }}>
+                   <AlertCircle size={20} color={COLORS.danger} />
+                   <TView style={{ flex: 1 }}>
+                      <TText style={{ fontWeight: '700', color: COLORS.danger }}>Editing Locked</TText>
+                      <TText variant="caption" style={{ marginTop: 4, color: COLORS.danger }}>Transactions already exist. Series cannot be changed mid-cycle.</TText>
+                   </TView>
+                </TView>
+             </TView>
+           )}
         </TView>
       </TView>
     </WebLayout>

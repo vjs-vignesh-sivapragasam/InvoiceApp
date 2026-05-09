@@ -49,7 +49,7 @@ const DummyBilling = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [items, setItems] = useState<Item[]>([{ id: '1', productid: null, name: '', qty: '1', incase: '1', pieces: '1', price: '0', hsn: '' }]);
+  const [items, setItems] = useState<Item[]>([{ id: '1', productid: null, name: '', qty: '1', incase: '-', pieces: '-', price: '0', hsn: '' }]);
   const [adjustment, setAdjustment] = useState('0');
   const [discount, setDiscount] = useState('0');
   const [billGST, setBillGST] = useState('12');
@@ -59,6 +59,7 @@ const DummyBilling = () => {
   const [docType, setDocType] = useState<'invoice' | 'quotation'>('invoice');
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
   const [isItemsExpanded, setIsItemsExpanded] = useState(true);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
@@ -85,16 +86,28 @@ const DummyBilling = () => {
 
   const fetchInitialData = async () => {
     try {
-      const [c, p, nextBill] = await Promise.all([
+      // 1. Load from Local Cache first (Instant)
+      const savedProfile = await AsyncStorage.getItem('business_profile');
+      if (savedProfile) {
+        setBusinessProfile(JSON.parse(savedProfile));
+      }
+
+      // 2. Fetch latest from DB
+      const [c, p, nextBill, dbProfile] = await Promise.all([
         db.clients.getAll(),
         db.products.getWithStock(),
-        db.billSeries.getNextBillNo(1)
+        db.billSeries.getNextBillNo(1),
+        db.users.getProfile(1).catch(() => null)
       ]);
+
       setClients(c);
       setProducts(p);
       setBillNo(nextBill);
-      const savedProfile = await AsyncStorage.getItem('business_profile');
-      if (savedProfile) setBusinessProfile(JSON.parse(savedProfile));
+      
+      if (dbProfile) {
+        setBusinessProfile(dbProfile);
+        await AsyncStorage.setItem('business_profile', JSON.stringify(dbProfile));
+      }
     } catch (e) {
       console.error('Fetch error:', e);
       showToast('Connection issue', 'error');
@@ -108,7 +121,7 @@ const DummyBilling = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const addItem = () => { setItems([...items, { id: Math.random().toString(), productid: null, name: '', qty: '1', incase: '1', pieces: '1', price: '0', hsn: '' }]); setIsItemsExpanded(true); };
+  const addItem = () => { setItems([...items, { id: Math.random().toString(), productid: null, name: '', qty: '1', incase: '-', pieces: '-', price: '0', hsn: '' }]); setIsItemsExpanded(true); };
   const removeItem = (id: string) => items.length > 1 && setItems(items.filter(item => item.id !== id));
 
   const updateItem = (id: string, field: string, value: any) => {
@@ -118,7 +131,12 @@ const DummyBilling = () => {
 
       if (field === 'productid') {
         const p = products.find(x => x.productid === value);
-        updated.productid = value; updated.name = p?.productname || ''; updated.price = p?.sellingprice?.toString() || '0'; updated.hsn = p?.hsn || ''; updated.incase = p?.incase?.toString() || '1';
+        updated.productid = value;
+        updated.name = p?.productname || '';
+        updated.price = p?.sellingprice?.toString() || '0';
+        updated.hsn = p?.hsn || '';
+        updated.incase = (p?.incase ?? '-').toString();
+        updated.pieces = (p?.pieces ?? '-').toString();
 
         const availableStock = (p as any)?.currentStock || 0;
         if (availableStock <= 0) {
@@ -135,15 +153,21 @@ const DummyBilling = () => {
             showToast(`Insufficient stock! Max available: ${availableStock}`, 'error');
             updated.qty = availableStock.toString();
           }
+          updated.pieces = (p?.pieces ?? '-').toString();
         }
       }
 
-      updated.pieces = ((parseFloat(updated.qty) || 0) * (parseFloat(updated.incase) || 1)).toString();
       return updated;
     }));
   };
 
-  const calculateSubtotal = () => items.reduce((acc, item) => acc + (parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0), 0);
+  // Subtotal = (qty * pieces) × price per unit
+  const calculateSubtotal = () => items.reduce((acc, item) => {
+    const qty = parseFloat(item.qty) || 0;
+    const piecesPerBox = parseFloat(item.pieces) || 0;
+    const price = parseFloat(item.price) || 0;
+    return acc + (qty * piecesPerBox * price);
+  }, 0);
   const getCalculations = () => {
     const subtotal = calculateSubtotal();
     const discPerc = parseFloat(discount) || 0;
@@ -242,7 +266,7 @@ const DummyBilling = () => {
 
   const resetForm = () => {
     setSelectedClient(null);
-    setItems([{ id: Math.random().toString(), productid: null, name: '', qty: '1', incase: '1', pieces: '1', price: '0', hsn: '' }]);
+    setItems([{ id: Math.random().toString(), productid: null, name: '', qty: '1', incase: '-', pieces: '-', price: '0', hsn: '' }]);
     setAdjustment('0');
     setDiscount('0');
     setGstEnabled(true);
@@ -253,22 +277,35 @@ const DummyBilling = () => {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, { backgroundColor: colors.background }]}>
       <TView style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><ChevronRight size={22} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} /></TouchableOpacity>
-        <TText variant="subtitle" style={{ fontWeight: '900', letterSpacing: -0.2 }}>Dummy Billing</TText>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <ChevronRight size={22} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} />
+        </TouchableOpacity>
+        
+        <TView style={[styles.headerSwitcher, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderColor: colors.border }]}>
+          <TouchableOpacity 
+            onPress={() => setDocType('invoice')} 
+            style={[styles.headerTypeBtn, docType === 'invoice' && { backgroundColor: COLORS.primary, ...SHADOWS.sm }]}
+          >
+            <TText style={[styles.headerTypeLabel, docType === 'invoice' ? { color: '#fff', fontWeight: '900' } : { color: colors.textSecondary }]}>INVOICE</TText>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setDocType('quotation')} 
+            style={[styles.headerTypeBtn, docType === 'quotation' && { backgroundColor: COLORS.primary, ...SHADOWS.sm }]}
+          >
+            <TText style={[styles.headerTypeLabel, docType === 'quotation' ? { color: '#fff', fontWeight: '900' } : { color: colors.textSecondary }]}>QUOTE</TText>
+          </TouchableOpacity>
+        </TView>
+
         <TouchableOpacity onPress={resetForm} style={styles.backBtn}>
           <Eraser size={22} color={COLORS.danger} />
         </TouchableOpacity>
       </TView>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
-        <TView style={[styles.typeSwitcher, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-          <TouchableOpacity onPress={() => setDocType('invoice')} style={[styles.typeBtn, docType === 'invoice' && styles.activeTypeBtn]}>
-            <TText style={[styles.typeLabel, docType === 'invoice' && { color: COLORS.primary, fontWeight: '900' }]}>DUMMY INVOICE</TText>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setDocType('quotation')} style={[styles.typeBtn, docType === 'quotation' && styles.activeTypeBtn]}>
-            <TText style={[styles.typeLabel, docType === 'quotation' && { color: COLORS.primary, fontWeight: '900' }]}>DUMMY QUOTE</TText>
-          </TouchableOpacity>
+        <TView style={{ paddingHorizontal: 20, paddingTop: 10, marginBottom: 5, alignItems: 'center' }}>
+          <TText style={{ fontSize: 22, fontWeight: '900', letterSpacing: -0.5, textAlign: 'center' }}>Dummy Billing Screen</TText>
         </TView>
+        <View style={{ height: 10 }} />
 
         <TView style={styles.headerLayout}>
           <TouchableOpacity onPress={() => setIsHeaderExpanded(!isHeaderExpanded)} activeOpacity={0.7} style={styles.gridTitleBar}>
@@ -348,10 +385,7 @@ const DummyBilling = () => {
               <ShoppingBag size={18} color={COLORS.primary} />
               <TText style={styles.gridTitleText}>PARTICULARS ({items.length})</TText>
             </TView>
-            <TView style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-              <TouchableOpacity onPress={addItem} style={styles.addCta}><Plus size={16} color="#fff" /></TouchableOpacity>
-              <ChevronDown size={20} color={colors.textSecondary} style={{ transform: [{ rotate: isItemsExpanded ? '180deg' : '0deg' }] }} />
-            </TView>
+            <ChevronDown size={20} color={colors.textSecondary} style={{ transform: [{ rotate: isItemsExpanded ? '180deg' : '0deg' }] }} />
           </TouchableOpacity>
 
           <AnimatePresence>
@@ -382,26 +416,61 @@ const DummyBilling = () => {
                         </TView>
                         <TView style={styles.lineFooterAction}>
                           <TView style={{ flex: 1 }}><TText style={styles.lineCellLabel}>QTY (BOX)</TText><TextInput value={item.qty} onChangeText={v => updateItem(item.id, 'qty', v)} keyboardType="numeric" style={[styles.lineQtyInput, { color: isDark ? '#fff' : '#000', borderColor: isCritical ? COLORS.danger : COLORS.primary }]} /></TView>
-                          <TView style={{ flex: 1.5 }}><TText style={styles.lineCellLabel}>ITEM TOTAL</TText><TView style={[styles.lineTotalBack, { backgroundColor: COLORS.primary + '08' }]}><TText style={styles.lineTotalValue}>₹{((parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0)).toLocaleString('en-IN')}</TText></TView></TView>
+                          <TView style={{ flex: 1.5 }}><TText style={styles.lineCellLabel}>ITEM TOTAL</TText><TView style={[styles.lineTotalBack, { backgroundColor: COLORS.primary + '08' }]}><TText style={styles.lineTotalValue}>₹{((parseFloat(item.qty) || 0) * (parseFloat(item.pieces) || 0) * (parseFloat(item.price) || 0)).toLocaleString('en-IN')}</TText></TView></TView>
                         </TView>
                       </TView>
                     );
                   })}
+                  <TouchableOpacity 
+                    onPress={addItem}
+                    style={{ 
+                      flexDirection: 'row', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      marginHorizontal: 16, 
+                      marginBottom: 20, 
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: COLORS.primary,
+                      borderStyle: 'dashed',
+                      backgroundColor: COLORS.primary + '05'
+                    }}
+                  >
+                    <Plus size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                    <TText style={{ color: COLORS.primary, fontWeight: '900', fontSize: 13 }}>ADD NEW ITEM</TText>
+                  </TouchableOpacity>
                 </View>
               </MotiView>
             )}
           </AnimatePresence>
         </TView>
 
-        <TView style={[styles.summaryPane, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : colors.card, borderColor: colors.border }]}>
-          <TView style={styles.summaryLine}><Calculator size={18} color={COLORS.primary} /><TText style={styles.summaryText}>Round Off</TText><TextInput value={adjustment} onChangeText={setAdjustment} keyboardType="numeric" style={[styles.summaryInput, { color: colors.text }]} /></TView>
-          <TView style={[styles.summaryLine, { marginTop: 12 }]}><Percent size={18} color={COLORS.primary} /><TText style={styles.summaryText}>Discount (%)</TText><TextInput value={discount} onChangeText={setDiscount} keyboardType="numeric" style={[styles.summaryInput, { color: COLORS.danger }]} /></TView>
+        <TView style={{ marginTop: 25 }}>
+          <TouchableOpacity onPress={() => setIsSummaryExpanded(!isSummaryExpanded)} style={styles.gridTitleBar}>
+            <TView style={styles.gridTitleLeft}>
+              <Calculator size={18} color={COLORS.primary} />
+              <TText style={styles.gridTitleText}>BILLING SUMMARY</TText>
+            </TView>
+            <ChevronDown size={20} color={colors.textSecondary} style={{ transform: [{ rotate: isSummaryExpanded ? '180deg' : '0deg' }] }} />
+          </TouchableOpacity>
+
+          <AnimatePresence>
+            {isSummaryExpanded && (
+              <MotiView from={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ type: 'timing', duration: 250 }} style={{ overflow: 'hidden' }}>
+                <TView style={[styles.summaryPane, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : colors.card, borderColor: colors.border }]}>
+                  <TView style={styles.summaryLine}><Calculator size={18} color={COLORS.primary} /><TText style={styles.summaryText}>Round Off</TText><TextInput value={adjustment} onChangeText={setAdjustment} keyboardType="numeric" style={[styles.summaryInput, { color: colors.text }]} /></TView>
+                  <TView style={[styles.summaryLine, { marginTop: 12 }]}><Percent size={18} color={COLORS.primary} /><TText style={styles.summaryText}>Discount (%)</TText><TextInput value={discount} onChangeText={setDiscount} keyboardType="numeric" style={[styles.summaryInput, { color: COLORS.danger }]} /></TView>
+                </TView>
+              </MotiView>
+            )}
+          </AnimatePresence>
         </TView>
 
         <TView style={styles.paymentContainer}>
           <TText style={styles.gridTitleText}>PAYMENT METHOD</TText>
           <TView style={styles.paymentRow}>
-            {['CASH', 'CREDIT', 'GPAY'].map((m: any) => (
+            {['CASH', 'CREDIT', 'GPAY', 'CARD'].map((m: any) => (
               <TouchableOpacity
                 key={m}
                 onPress={() => setPaymentMethod(m)}
@@ -427,7 +496,7 @@ const DummyBilling = () => {
           </View>
           <View style={styles.billActionArea}>
             <TouchableOpacity onPress={() => setPreviewModalVisible(true)} style={[styles.billPreviewBtn, { backgroundColor: colors.surfaceSecondary }]}><Eye size={24} color={COLORS.primary} /></TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.billFinishBtn}><LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.billFinishGrad}>{loading ? <ActivityIndicator color="#fff" /> : (<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><TText style={styles.billFinishText}>SAVE DUMMY</TText><ArrowRight size={20} color="#fff" /></View>)}</LinearGradient></TouchableOpacity>
+            <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.billFinishBtn}><LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.billFinishGrad}>{loading ? <ActivityIndicator color="#fff" /> : (<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><TText style={styles.billFinishText}>FINISH</TText><ArrowRight size={20} color="#fff" /></View>)}</LinearGradient></TouchableOpacity>
           </View>
         </View>
       </MotiView>
@@ -464,25 +533,51 @@ const DummyBilling = () => {
               <TView style={styles.previewBox}>
                 <Design1
                   data={{
-                    business: businessProfile || {},
+                    business: businessProfile ? {
+                      name: businessProfile.companyName || businessProfile.optional1 || businessProfile.name || 'MK AGENCY',
+                      ownerName: businessProfile.ownerName || businessProfile.username || '',
+                      address: businessProfile.address || businessProfile.addressline1 || businessProfile.AddressLine1 || '',
+                      address2: businessProfile.address2 || businessProfile.addressline2 || businessProfile.AddressLine2 || '',
+                      landmark: businessProfile.landmark || businessProfile.Landmark || '',
+                      pincode: businessProfile.pincode || businessProfile.Pincode || '',
+                      mobile: businessProfile.mobile || businessProfile.Mobile || '',
+                      altMobile: businessProfile.altMobile || businessProfile.mobile2 || businessProfile.Mobile2 || '',
+                      email: businessProfile.email || businessProfile.emailid || businessProfile.EmailID || '',
+                      gstin: businessProfile.gstin || businessProfile.GSTIN || '',
+                      bankName: businessProfile.bankName || businessProfile.bankaccountname || businessProfile.BankAccountName || '',
+                      accountNo: businessProfile.accountNo || businessProfile.accountno || businessProfile.AccountNo || '',
+                      ifsc: businessProfile.ifsc || businessProfile.IFSC || '',
+                    } : { name: 'MK AGENCY', address: '6, 1st cross, Puducherry', mobile: '+91 9791858965', gstin: '34CEBPG0848B1Z5' },
                     client: selectedClient || { clientname: 'Guest Client' },
                     billNo: billNo,
                     billDate: billDate,
                     withGST: gstEnabled,
                     items: items.map(it => {
-                      const taxable = parseFloat(it.qty) * parseFloat(it.price);
-                      const rate = gstEnabled ? parseFloat(billGST) : 0;
-                      const taxTotal = taxable * (rate / 100);
+                      const qty = parseFloat(it.qty) || 0;
+                      const piecesPerBox = parseFloat(it.pieces) || 0;
+                      const price = parseFloat(it.price) || 0;
+                      const totalUnits = qty * piecesPerBox;
+                      const baseAmount = totalUnits * price;
+
+                      const discPerc = parseFloat(discount) || 0;
+                      const discAmount = baseAmount * (discPerc / 100);
+                      const taxable = baseAmount - discAmount;
+
+                      const gstRate = gstEnabled ? parseFloat(billGST) : 0;
+                      const gstTotal = taxable * (gstRate / 100);
+                      const finalAmount = taxable + gstTotal;
+
                       return {
                         name: it.name || '---',
-                        hsn: it.hsn || '---',
-                        box: it.qty,
+                        hsn: it.hsn || '-',
+                        box: it.qty || '0',
                         pieces: it.pieces,
-                        price: parseFloat(it.price).toFixed(2),
-                        cgst: (taxTotal / 2).toFixed(2),
-                        sgst: (taxTotal / 2).toFixed(2),
-                        rate: (parseFloat(it.price) * (1 + rate / 100)).toFixed(2),
-                        amount: (taxable + taxTotal).toFixed(2)
+                        price: it.price,
+                        disc: discPerc > 0 ? `${discPerc}% - ₹${discAmount.toFixed(2)}` : '-',
+                        cgst: (gstTotal / 2).toFixed(2),
+                        sgst: (gstTotal / 2).toFixed(2),
+                        rate: (finalAmount / (totalUnits || 1)).toFixed(2),
+                        amount: finalAmount.toFixed(2)
                       };
                     }),
                     summary: {
@@ -508,7 +603,7 @@ const DummyBilling = () => {
           <MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.modalSheet, { backgroundColor: colors.background, height: 'auto', padding: 25 }]}>
             <TView style={{ alignItems: 'center', marginBottom: 20 }}>
               <TView style={[styles.modalItemIcon, { width: 60, height: 60, borderRadius: 30, marginBottom: 15 }]}><ShieldCheck size={32} color={COLORS.primary} /></TView>
-              <TText style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Confirm Dummy Save</TText>
+              <TText style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Finish Transaction</TText>
               <TText style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: 8 }}>Are you sure you want to generate this {docType}? Bill No: {billNo}</TText>
             </TView>
 
@@ -546,7 +641,7 @@ const DummyBilling = () => {
                </TouchableOpacity>
                <TouchableOpacity onPress={executeSave} style={{ flex: 1.5, height: 50, borderRadius: 12, overflow: 'hidden' }}>
                   <LinearGradient colors={['#6366F1', '#4F46E5']} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                     <TText style={{ color: '#fff', fontWeight: '900' }}>Confirm & Save</TText>
+                     <TText style={{ color: '#fff', fontWeight: '900' }}>Finish</TText>
                   </LinearGradient>
                </TouchableOpacity>
             </TView>
@@ -559,8 +654,11 @@ const DummyBilling = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, marginTop: 8 },
-  backBtn: { width: 44, height: 44, justifyContent: 'center' },
+  header: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, marginTop: 40 },
+  headerSwitcher: { flex: 1, flexDirection: 'row', height: 42, borderRadius: 12, padding: 4, marginHorizontal: 12, borderWidth: 1 },
+  headerTypeBtn: { flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 9 },
+  headerTypeLabel: { fontSize: 11, fontWeight: '700' },
+  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { paddingBottom: 150 },
   typeSwitcher: { flexDirection: 'row', padding: 5, borderRadius: 16, marginHorizontal: 20, marginBottom: 15, marginTop: 15 },
   typeBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
