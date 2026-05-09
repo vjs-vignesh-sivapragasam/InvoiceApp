@@ -54,7 +54,7 @@ workflows:
           cd android
           
           # Shared gradle properties
-          GRADLE_PROPS="-x configureCMakeRelease -Pandroid.overridePathCheck=true"
+          GRADLE_PROPS="-Pandroid.overridePathCheck=true"
 
           if [ "$UNSIGNED_BUILD" = "true" ]; then
             echo "📦 Building unsigned release APK"
@@ -153,7 +153,7 @@ workflows:
         script: |
           cd android
           echo "📦 Building debug APK"
-          ./gradlew assembleDebug -x configureCMakeDebug -Pandroid.overridePathCheck=true
+          ./gradlew assembleDebug -Pandroid.overridePathCheck=true
 
           BUILD_OUTPUT="app/build/outputs/apk/debug"
           if [ -f "$BUILD_OUTPUT/app-debug.apk" ]; then

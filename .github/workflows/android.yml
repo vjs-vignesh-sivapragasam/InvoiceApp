@@ -31,7 +31,7 @@ jobs:
       - name: 🏗️ Build Release APK
         run: |
           cd android
-          ./gradlew assembleRelease -x configureCMakeRelease -Pandroid.overridePathCheck=true
+          ./gradlew assembleRelease -Pandroid.overridePathCheck=true
 
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
