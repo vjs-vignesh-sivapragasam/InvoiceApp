@@ -10,8 +10,8 @@
     "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#312e81"
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a1a"
     },
     "ios": {
       "supportsTablet": true
@@ -20,7 +20,7 @@
       "package": "com.vignesh.mk",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#312e81"
+        "backgroundColor": "#0a0a1a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false

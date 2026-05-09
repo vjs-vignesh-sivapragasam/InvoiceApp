@@ -1,10 +1,12 @@
-name: Build Android APK
+name: Build Android Release APK
 on:
   push:
     branches: ["develop", "main"]
+  workflow_dispatch:
 
 jobs:
   build:
+    name: Production Release APK
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Checkout
@@ -31,17 +33,36 @@ jobs:
       - name: ✅ Grant Gradle permissions
         run: chmod +x android/gradlew
 
-      - name: 🏗️ Build Debug APK
+      - name: 🏗️ Build Release APK (Production, Unsigned)
         run: |
           cd android
-          ./gradlew assembleDebug \
+          ./gradlew assembleRelease \
             --no-daemon \
             --stacktrace \
             -Pandroid.overridePathCheck=true
 
-      - name: 📤 Upload APK Artifact
+      - name: 📦 Rename APK with version
+        run: |
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('app.json','utf8')).expo.version")
+          APP_NAME=$(node -p "JSON.parse(require('fs').readFileSync('app.json','utf8')).expo.name.replace(/[^a-zA-Z0-9]/g,'')")
+          APK_SRC="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          APK_FALLBACK="android/app/build/outputs/apk/release/app-release.apk"
+          APK_OUT="${APP_NAME}_v${VERSION}_release.apk"
+          if [ -f "$APK_SRC" ]; then
+            cp "$APK_SRC" "$APK_OUT"
+          elif [ -f "$APK_FALLBACK" ]; then
+            cp "$APK_FALLBACK" "$APK_OUT"
+          else
+            echo "❌ No APK found in release output"
+            ls android/app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          echo "✅ APK ready: $APK_OUT"
+          echo "APK_NAME=$APK_OUT" >> $GITHUB_ENV
+
+      - name: 📤 Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
-          retention-days: 7
+          name: release-apk
+          path: "*.apk"
+          retention-days: 14
