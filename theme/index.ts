@@ -7,31 +7,31 @@ export const COLORS = {
   warning: '#fbbf24',
   info: '#60a5fa',
 
-  // Light Theme
+  // Premium Light Theme (Ocean & Ink)
   light: {
-    background: '#f1f5f9',
-    surface: '#f8fafc',
-    surfaceSecondary: '#f1f5f9',
-    text: '#0f172a',
-    textSecondary: '#64748b',
-    border: '#e2e8f0',
-    card: '#ffffff',
-    glass: 'rgba(255, 255, 255, 0.8)',
-    shadow: '#000000',
+    background: '#f8fafc',      // Crisp, clean background
+    surface: '#ffffff',         // Pure white surface
+    surfaceSecondary: '#f1f5f9', // Soft light gray-blue
+    text: '#0f172a',            // Deep Midnight Blue (Sophisticated)
+    textSecondary: '#64748b',   // Steel Slate (Readable)
+    border: '#e2e8f0',          // Subtle border
+    card: '#ffffff',            // Pure white card
+    glass: 'rgba(255, 255, 255, 0.9)',
+    shadow: '#64748b',
   },
 
   // Premium Deep Navy Theme (Refined Dark)
   dark: {
-    background: '#0f1623',      // Deep Navy — rich, not pure black
-    surface: '#161e2e',         // Slightly lighter navy surface
-    surfaceSecondary: '#1e2a40', // Elevated layer — visible depth
-    text: '#e8edf5',            // Soft white — easier on eyes
-    textSecondary: '#8fa3bf',   // Muted steel-blue
-    border: 'rgba(129, 140, 248, 0.18)', // Neon-tinted borders
-    card: '#192236',            // Deep navy card
-    glass: 'rgba(22, 30, 46, 0.80)',
-    highlight: '#818cf8',       // Primary glow
-    accentSecondary: '#f472b6', // Pink accent for variety
+    background: '#0f172a',      // Deep Navy
+    surface: '#1e293b',         // Lighter navy
+    surfaceSecondary: '#334155', // Elevated surface
+    text: '#f1f5f9',            // Near white
+    textSecondary: '#94a3b8',   // Muted slate
+    border: 'rgba(148, 163, 184, 0.2)',
+    card: '#1e293b',
+    glass: 'rgba(15, 23, 42, 0.8)',
+    highlight: '#818cf8',
+    accentSecondary: '#f472b6',
     shadow: '#000000',
   }
 };

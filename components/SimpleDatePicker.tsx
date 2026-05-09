@@ -1,8 +1,8 @@
+import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Modal, StyleSheet, TouchableOpacity, View, FlatList, SafeAreaView } from 'react-native';
-import { TView, TText, useTheme } from './ThemedUI';
+import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { COLORS, RADIUS } from '../theme';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { TText, TView, useTheme } from './ThemedUI';
 
 interface Props {
   visible: boolean;
@@ -30,7 +30,7 @@ export const SimpleDatePicker = ({ visible, value, onClose, onChange }: Props) =
     const month = currentView.getMonth();
     const daysCount = getDaysInMonth(year, month);
     const firstDay = new Date(year, month, 1).getDay();
-    
+
     const days = [];
     // Add empty slots for the first week
     for (let i = 0; i < firstDay; i++) days.push(null);
@@ -47,8 +47,10 @@ export const SimpleDatePicker = ({ visible, value, onClose, onChange }: Props) =
             disabled={!day}
             onPress={() => {
               if (day) {
-                const selected = new Date(year, month, day);
-                onChange(selected.toISOString().split('T')[0]);
+                const y = year;
+                const m = String(month + 1).padStart(2, '0');
+                const d = String(day).padStart(2, '0');
+                onChange(`${y}-${m}-${d}`);
                 onClose();
               }
             }}
@@ -58,8 +60,8 @@ export const SimpleDatePicker = ({ visible, value, onClose, onChange }: Props) =
             ]}
           >
             <TText style={[
-              styles.dayText, 
-              !day ? { opacity: 0 } : null, 
+              styles.dayText,
+              !day ? { opacity: 0 } : null,
               (day && value === `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`) ? { color: '#fff', fontWeight: '900' } : null
             ]}>
               {day}
@@ -93,15 +95,18 @@ export const SimpleDatePicker = ({ visible, value, onClose, onChange }: Props) =
 
           {renderDays()}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
-                const today = new Date();
-                onChange(today.toISOString().split('T')[0]);
-                onClose();
+              const today = new Date();
+              const y = today.getFullYear();
+              const m = String(today.getMonth() + 1).padStart(2, '0');
+              const d = String(today.getDate()).padStart(2, '0');
+              onChange(`${y}-${m}-${d}`);
+              onClose();
             }}
             style={styles.todayBtn}
           >
-             <TText style={{ color: COLORS.primary, fontWeight: '700' }}>SET TO TODAY</TText>
+            <TText style={{ color: COLORS.primary, fontWeight: '700' }}>SET TO TODAY</TText>
           </TouchableOpacity>
         </TView>
       </View>

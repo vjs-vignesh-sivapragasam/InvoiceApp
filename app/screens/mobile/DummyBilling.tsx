@@ -26,7 +26,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Ref
 import { useAppConfig } from '../../../components/AppConfigProvider';
 import { Button } from '../../../components/Button';
 import { useNotifications } from '../../../components/NotificationProvider';
-import { SimpleDatePicker } from '../../../components/SimpleDatePicker';
+import { DateDropdown } from '../../../components/DateDropdown';
 import { Design1 } from '../../../components/templates/Design1';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { db } from '../../../services/supabase';
@@ -74,7 +74,10 @@ const DummyBilling = () => {
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      setBillDate(selectedDate.toLocaleDateString('en-CA'));
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      setBillDate(`${y}-${m}-${d}`);
     }
   };
 
@@ -103,7 +106,7 @@ const DummyBilling = () => {
       setClients(c);
       setProducts(p);
       setBillNo(nextBill);
-      
+
       if (dbProfile) {
         setBusinessProfile(dbProfile);
         await AsyncStorage.setItem('business_profile', JSON.stringify(dbProfile));
@@ -280,16 +283,16 @@ const DummyBilling = () => {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <ChevronRight size={22} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} />
         </TouchableOpacity>
-        
+
         <TView style={[styles.headerSwitcher, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderColor: colors.border }]}>
-          <TouchableOpacity 
-            onPress={() => setDocType('invoice')} 
+          <TouchableOpacity
+            onPress={() => setDocType('invoice')}
             style={[styles.headerTypeBtn, docType === 'invoice' && { backgroundColor: COLORS.primary, ...SHADOWS.sm }]}
           >
             <TText style={[styles.headerTypeLabel, docType === 'invoice' ? { color: '#fff', fontWeight: '900' } : { color: colors.textSecondary }]}>INVOICE</TText>
           </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => setDocType('quotation')} 
+          <TouchableOpacity
+            onPress={() => setDocType('quotation')}
             style={[styles.headerTypeBtn, docType === 'quotation' && { backgroundColor: COLORS.primary, ...SHADOWS.sm }]}
           >
             <TText style={[styles.headerTypeLabel, docType === 'quotation' ? { color: '#fff', fontWeight: '900' } : { color: colors.textSecondary }]}>QUOTE</TText>
@@ -355,14 +358,11 @@ const DummyBilling = () => {
                       <TText style={styles.compactMetaVal}>{billDate}</TText>
                     </TouchableOpacity>
                   </TView>
-                  <SimpleDatePicker
+                  <DateDropdown
                     visible={showDatePicker}
                     value={billDate}
                     onClose={() => setShowDatePicker(false)}
-                    onChange={(date) => {
-                      setBillDate(date);
-                      setShowDatePicker(false);
-                    }}
+                    onChange={(d) => setBillDate(d)}
                   />
                   <TView style={styles.taxSection}>
                     <TView style={styles.taxSectionHead}>
@@ -421,14 +421,14 @@ const DummyBilling = () => {
                       </TView>
                     );
                   })}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={addItem}
-                    style={{ 
-                      flexDirection: 'row', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      marginHorizontal: 16, 
-                      marginBottom: 20, 
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginHorizontal: 16,
+                      marginBottom: 20,
                       paddingVertical: 14,
                       borderRadius: 12,
                       borderWidth: 1.5,
@@ -608,42 +608,42 @@ const DummyBilling = () => {
             </TView>
 
             <TView style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 15, borderRadius: 16, marginBottom: 25 }}>
-               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Bill Number</TText>
-                  <TText style={{ fontSize: 11, fontWeight: '800' }}>{billNo}</TText>
-               </TView>
-               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Billing Date</TText>
-                  <TText style={{ fontSize: 11, fontWeight: '800' }}>{billDate}</TText>
-               </TView>
-               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Tax Logic</TText>
-                  <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.primary }}>{gstEnabled ? `${billGST}% GST` : 'Non-GST'}</TText>
-               </TView>
-               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Discount</TText>
-                  <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.danger }}>{discount || '0'}%</TText>
-               </TView>
-               <TView style={{ height: 1, backgroundColor: colors.border, marginVertical: 8, opacity: 0.2 }} />
-               <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <TText style={{ fontSize: 11, opacity: 0.6 }}>Series Mode</TText>
-                  <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.secondary }}>MANUAL/DUMMY</TText>
-               </TView>
-               <TView style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <TText style={{ fontSize: 13, fontWeight: '700' }}>TOTAL PAYABLE</TText>
-                  <TText style={{ fontSize: 16, fontWeight: '900', color: COLORS.primary }}>₹{calculateTotal().toLocaleString()}</TText>
-               </TView>
+              <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <TText style={{ fontSize: 11, opacity: 0.6 }}>Bill Number</TText>
+                <TText style={{ fontSize: 11, fontWeight: '800' }}>{billNo}</TText>
+              </TView>
+              <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <TText style={{ fontSize: 11, opacity: 0.6 }}>Billing Date</TText>
+                <TText style={{ fontSize: 11, fontWeight: '800' }}>{billDate}</TText>
+              </TView>
+              <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <TText style={{ fontSize: 11, opacity: 0.6 }}>Tax Logic</TText>
+                <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.primary }}>{gstEnabled ? `${billGST}% GST` : 'Non-GST'}</TText>
+              </TView>
+              <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <TText style={{ fontSize: 11, opacity: 0.6 }}>Discount</TText>
+                <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.danger }}>{discount || '0'}%</TText>
+              </TView>
+              <TView style={{ height: 1, backgroundColor: colors.border, marginVertical: 8, opacity: 0.2 }} />
+              <TView style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <TText style={{ fontSize: 11, opacity: 0.6 }}>Series Mode</TText>
+                <TText style={{ fontSize: 11, fontWeight: '800', color: COLORS.secondary }}>MANUAL/DUMMY</TText>
+              </TView>
+              <TView style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <TText style={{ fontSize: 13, fontWeight: '700' }}>TOTAL PAYABLE</TText>
+                <TText style={{ fontSize: 16, fontWeight: '900', color: COLORS.primary }}>₹{calculateTotal().toLocaleString()}</TText>
+              </TView>
             </TView>
 
             <TView style={{ flexDirection: 'row', gap: 12 }}>
-               <TouchableOpacity onPress={() => setConfirmModalVisible(false)} style={{ flex: 1, height: 50, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
-                  <TText style={{ fontWeight: '800', opacity: 0.6 }}>Cancel</TText>
-               </TouchableOpacity>
-               <TouchableOpacity onPress={executeSave} style={{ flex: 1.5, height: 50, borderRadius: 12, overflow: 'hidden' }}>
-                  <LinearGradient colors={['#6366F1', '#4F46E5']} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                     <TText style={{ color: '#fff', fontWeight: '900' }}>Finish</TText>
-                  </LinearGradient>
-               </TouchableOpacity>
+              <TouchableOpacity onPress={() => setConfirmModalVisible(false)} style={{ flex: 1, height: 50, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
+                <TText style={{ fontWeight: '800', opacity: 0.6 }}>Cancel</TText>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={executeSave} style={{ flex: 1.5, height: 50, borderRadius: 12, overflow: 'hidden' }}>
+                <LinearGradient colors={['#6366F1', '#4F46E5']} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <TText style={{ color: '#fff', fontWeight: '900' }}>Finish</TText>
+                </LinearGradient>
+              </TouchableOpacity>
             </TView>
           </MotiView>
         </TView>

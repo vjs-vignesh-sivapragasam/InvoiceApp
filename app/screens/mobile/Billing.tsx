@@ -26,7 +26,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Ref
 import { useAppConfig } from '../../../components/AppConfigProvider';
 import { Button } from '../../../components/Button';
 import { useNotifications } from '../../../components/NotificationProvider';
-import { SimpleDatePicker } from '../../../components/SimpleDatePicker';
+import { DateDropdown } from '../../../components/DateDropdown';
 import { Design1 } from '../../../components/templates/Design1';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { db } from '../../../services/supabase';
@@ -72,10 +72,14 @@ const MobileBilling = () => {
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
     if (selectedDate) {
-      // Use en-CA for stable YYYY-MM-DD in local time
-      setBillDate(selectedDate.toLocaleDateString('en-CA'));
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      setBillDate(`${y}-${m}-${d}`);
     }
   };
 
@@ -381,14 +385,11 @@ const MobileBilling = () => {
                       </TView>
                     </TouchableOpacity>
                   </TView>
-                  <SimpleDatePicker
+                  <DateDropdown
                     visible={showDatePicker}
                     value={billDate}
                     onClose={() => setShowDatePicker(false)}
-                    onChange={(date) => {
-                      setBillDate(date);
-                      setShowDatePicker(false);
-                    }}
+                    onChange={(d) => setBillDate(d)}
                   />
                   <TView style={styles.taxSection}>
                     <TView style={styles.taxSectionHead}>

@@ -14,7 +14,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';
 import { useNotifications } from '../../../components/NotificationProvider';
-import { Design1 } from '../../../components/templates/Design1';
+import { DateDropdown } from '../../../components/DateDropdown';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { db } from '../../../services/supabase';
 import { COLORS, SHADOWS } from '../../../theme';
@@ -262,14 +262,14 @@ export const Billing = () => {
         </View>
         <View style={{ flexDirection: 'row', gap: 16, marginTop: 20, justifyContent: 'center' }}>
           <TView style={[styles.typeSwitcher, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
-            <TouchableOpacity 
-              onPress={() => setDocType('invoice')} 
+            <TouchableOpacity
+              onPress={() => setDocType('invoice')}
               style={[styles.typeSlot, docType === 'invoice' && { backgroundColor: COLORS.primary }]}
             >
               <TText style={[styles.slotLabel, docType === 'invoice' ? { color: '#fff' } : { color: colors.textSecondary }]}>INVOICE</TText>
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => setDocType('quotation')} 
+            <TouchableOpacity
+              onPress={() => setDocType('quotation')}
               style={[styles.typeSlot, docType === 'quotation' && { backgroundColor: COLORS.primary }]}
             >
               <TText style={[styles.slotLabel, docType === 'quotation' ? { color: '#fff' } : { color: colors.textSecondary }]}>QUOTATION</TText>
@@ -279,9 +279,9 @@ export const Billing = () => {
             <TText style={{ fontWeight: '800', fontSize: 12, marginRight: 15, opacity: 0.6 }}>Payment</TText>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {['CASH', 'CREDIT', 'GPAY', 'CARD'].map((m: any) => (
-                <TouchableOpacity 
-                  key={m} 
-                  onPress={() => setPaymentMethod(m)} 
+                <TouchableOpacity
+                  key={m}
+                  onPress={() => setPaymentMethod(m)}
                   style={[styles.payChip, paymentMethod === m && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
                 >
                   <TText style={{ fontSize: 10, fontWeight: '900', color: paymentMethod === m ? '#fff' : colors.textSecondary }}>{m}</TText>
@@ -312,7 +312,19 @@ export const Billing = () => {
                   <View style={{ flexDirection: 'row', gap: 20 }}>
                     <View style={{ flex: 1.5 }}><TText variant="caption" style={{ marginBottom: 10 }}>Client Selector</TText><View style={{ position: 'relative' }}><TouchableOpacity onPress={() => setIsClientDropdownOpen(!isClientDropdownOpen)} style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary }]}><TText style={{ fontWeight: '700' }}>{selectedClient ? selectedClient.clientname : 'Search Client...'}</TText><ChevronDown size={18} color={colors.textSecondary} /></TouchableOpacity>{isClientDropdownOpen && (<View style={[styles.webDropdown, { backgroundColor: colors.card, borderColor: colors.border, ...SHADOWS.lg }]}><TextInput placeholder="Filter..." value={clientSearch} onChangeText={setClientSearch} style={[styles.dropdownSearch, { backgroundColor: colors.surfaceSecondary }]} /><ScrollView style={{ maxHeight: 250 }}>{clients.filter(c => c.clientname.toLowerCase().includes(clientSearch.toLowerCase())).map(c => (<TouchableOpacity key={c.clientid} onPress={() => { setSelectedClient(c); setIsClientDropdownOpen(false); }} style={styles.dropdownOption}><TText style={{ fontWeight: '700' }}>{c.clientname}</TText></TouchableOpacity>))}</ScrollView></View>)}</View></View>
                     <View style={{ flex: 1 }}><TText variant="caption" style={{ marginBottom: 10, fontWeight: '800', color: COLORS.primary }}>INVOICE NO</TText><TView style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary, opacity: 0.8 }]}><TText style={{ fontWeight: '700' }}>{billNo}</TText></TView></View>
-                    <View style={{ flex: 1 }}><TText variant="caption" style={{ marginBottom: 10, fontWeight: '800', color: COLORS.primary }}>BILL DATE</TText><TView style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary }]}><TText style={{ fontWeight: '700' }}>{billDate}</TText></TView></View>
+                    <View style={{ flex: 1 }}>
+                      <TText variant="caption" style={{ marginBottom: 10, fontWeight: '800', color: COLORS.primary }}>BILL DATE</TText>
+                      <TouchableOpacity onPress={() => setShowDatePicker(true)} style={[styles.webPicker, { backgroundColor: colors.surfaceSecondary, height: 44 }]}>
+                         <TText style={{ fontWeight: '700' }}>{billDate}</TText>
+                         <Calendar size={18} color={COLORS.primary} />
+                      </TouchableOpacity>
+                      <DateDropdown
+                        visible={showDatePicker}
+                        value={billDate}
+                        onClose={() => setShowDatePicker(false)}
+                        onChange={(d) => setBillDate(d)}
+                      />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <TText variant="caption" style={{ marginBottom: 10 }}>GST Rate</TText>
                       <View style={{ flexDirection: 'row', gap: 5 }}>{gstOptions.map(opt => (<TouchableOpacity key={opt} disabled={!gstEnabled} onPress={() => setBillGST(opt)} style={[styles.webGstChip, billGST === opt && gstEnabled && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }, !gstEnabled && { opacity: 0.3 }]}><TText style={{ fontSize: 11, fontWeight: '800', color: billGST === opt && gstEnabled ? '#fff' : colors.textSecondary }}>{opt}%</TText></TouchableOpacity>))}</View>
@@ -417,48 +429,50 @@ export const Billing = () => {
         </TView>
       </View>
 
-      <Modal visible={showPreview} transparent><View style={styles.modalOverlay}><MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.webPreviewModal}><View style={styles.previewHead}><TText variant="subtitle">Invoice Preview</TText><TouchableOpacity onPress={() => setShowPreview(false)}><X size={24} color={colors.text} /></TouchableOpacity></View><ScrollView contentContainerStyle={{ padding: 40, alignItems: 'center' }}><View style={{ width: 850, backgroundColor: '#fff', ...SHADOWS.lg }}><Design1 data={{ business: businessProfile ? {
-        name: businessProfile.companyName || businessProfile.optional1 || businessProfile.name || 'MK AGENCY',
-        ownerName: businessProfile.ownerName || businessProfile.username || '',
-        address: businessProfile.address || businessProfile.addressline1 || businessProfile.AddressLine1 || '',
-        address2: businessProfile.address2 || businessProfile.addressline2 || businessProfile.AddressLine2 || '',
-        landmark: businessProfile.landmark || businessProfile.Landmark || '',
-        pincode: businessProfile.pincode || businessProfile.Pincode || '',
-        mobile: businessProfile.mobile || businessProfile.Mobile || '',
-        altMobile: businessProfile.altMobile || businessProfile.mobile2 || businessProfile.Mobile2 || '',
-        email: businessProfile.email || businessProfile.emailid || businessProfile.EmailID || '',
-        gstin: businessProfile.gstin || businessProfile.GSTIN || '',
-        bankName: businessProfile.bankName || businessProfile.bankaccountname || businessProfile.BankAccountName || '',
-        accountNo: businessProfile.accountNo || businessProfile.accountno || businessProfile.AccountNo || '',
-        ifsc: businessProfile.ifsc || businessProfile.IFSC || '',
-      } : { name: 'MK AGENCY', address: '6, 1st cross, Puducherry', mobile: '+91 9791858965', gstin: '34CEBPG0848B1Z5' }, client: selectedClient || { clientname: '---' }, billNo: billNo || 'DRAFT', billDate: billDate, withGST: gstEnabled, items: items.map(it => {
-        const qty = parseFloat(it.qty) || 0;
-        const piecesPerBox = parseFloat(it.pieces) || 0;
-        const price = parseFloat(it.price) || 0;
-        const totalUnits = qty * piecesPerBox;
-        const baseAmount = totalUnits * price;
+      <Modal visible={showPreview} transparent><View style={styles.modalOverlay}><MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.webPreviewModal}><View style={styles.previewHead}><TText variant="subtitle">Invoice Preview</TText><TouchableOpacity onPress={() => setShowPreview(false)}><X size={24} color={colors.text} /></TouchableOpacity></View><ScrollView contentContainerStyle={{ padding: 40, alignItems: 'center' }}><View style={{ width: 850, backgroundColor: '#fff', ...SHADOWS.lg }}><Design1 data={{
+        business: businessProfile ? {
+          name: businessProfile.companyName || businessProfile.optional1 || businessProfile.name || 'MK AGENCY',
+          ownerName: businessProfile.ownerName || businessProfile.username || '',
+          address: businessProfile.address || businessProfile.addressline1 || businessProfile.AddressLine1 || '',
+          address2: businessProfile.address2 || businessProfile.addressline2 || businessProfile.AddressLine2 || '',
+          landmark: businessProfile.landmark || businessProfile.Landmark || '',
+          pincode: businessProfile.pincode || businessProfile.Pincode || '',
+          mobile: businessProfile.mobile || businessProfile.Mobile || '',
+          altMobile: businessProfile.altMobile || businessProfile.mobile2 || businessProfile.Mobile2 || '',
+          email: businessProfile.email || businessProfile.emailid || businessProfile.EmailID || '',
+          gstin: businessProfile.gstin || businessProfile.GSTIN || '',
+          bankName: businessProfile.bankName || businessProfile.bankaccountname || businessProfile.BankAccountName || '',
+          accountNo: businessProfile.accountNo || businessProfile.accountno || businessProfile.AccountNo || '',
+          ifsc: businessProfile.ifsc || businessProfile.IFSC || '',
+        } : { name: 'MK AGENCY', address: '6, 1st cross, Puducherry', mobile: '+91 9791858965', gstin: '34CEBPG0848B1Z5' }, client: selectedClient || { clientname: '---' }, billNo: billNo || 'DRAFT', billDate: billDate, withGST: gstEnabled, items: items.map(it => {
+          const qty = parseFloat(it.qty) || 0;
+          const piecesPerBox = parseFloat(it.pieces) || 0;
+          const price = parseFloat(it.price) || 0;
+          const totalUnits = qty * piecesPerBox;
+          const baseAmount = totalUnits * price;
 
-        const discPerc = parseFloat(discount) || 0;
-        const discAmount = baseAmount * (discPerc / 100);
-        const taxable = baseAmount - discAmount;
+          const discPerc = parseFloat(discount) || 0;
+          const discAmount = baseAmount * (discPerc / 100);
+          const taxable = baseAmount - discAmount;
 
-        const gstRate = gstEnabled ? parseFloat(billGST) : 0;
-        const gstTotal = taxable * (gstRate / 100);
-        const finalAmount = taxable + gstTotal;
+          const gstRate = gstEnabled ? parseFloat(billGST) : 0;
+          const gstTotal = taxable * (gstRate / 100);
+          const finalAmount = taxable + gstTotal;
 
-        return {
-          name: it.name || '---',
-          hsn: it.hsn || '-',
-          box: it.qty || '0',
-          pieces: it.pieces, // Units per box
-          price: it.price,  // Price per unit
-          disc: discPerc > 0 ? `${discPerc}% - ₹${discAmount.toFixed(2)}` : '-',
-          cgst: (gstTotal / 2).toFixed(2),
-          sgst: (gstTotal / 2).toFixed(2),
-          rate: (finalAmount / (totalUnits || 1)).toFixed(2),
-          amount: finalAmount.toFixed(2)
-        };
-      }), summary: { totalQty: items.length.toString(), totalAmount: calculateTotal().toFixed(2), beforeTax: calculateSubtotal().toFixed(2), afterTax: calculateTotal().toFixed(2) }, docType: docType }} /></View></ScrollView></MotiView></View></Modal>
+          return {
+            name: it.name || '---',
+            hsn: it.hsn || '-',
+            box: it.qty || '0',
+            pieces: it.pieces, // Units per box
+            price: it.price,  // Price per unit
+            disc: discPerc > 0 ? `${discPerc}% - ₹${discAmount.toFixed(2)}` : '-',
+            cgst: (gstTotal / 2).toFixed(2),
+            sgst: (gstTotal / 2).toFixed(2),
+            rate: (finalAmount / (totalUnits || 1)).toFixed(2),
+            amount: finalAmount.toFixed(2)
+          };
+        }), summary: { totalQty: items.length.toString(), totalAmount: calculateTotal().toFixed(2), beforeTax: calculateSubtotal().toFixed(2), afterTax: calculateTotal().toFixed(2) }, docType: docType
+      }} /></View></ScrollView></MotiView></View></Modal>
       <Modal visible={showConfirmModal} transparent>
         <View style={styles.modalOverlay}>
           <MotiView from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={[styles.webPreviewModal, { width: 500, height: 'auto', padding: 40 }]}>
