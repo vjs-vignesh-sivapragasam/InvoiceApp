@@ -17,7 +17,7 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import React, { useState } from 'react';
-import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
+import { Alert, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 import { useAppConfig } from '../../../components/AppConfigProvider';
 import { TText, TView, useTheme } from '../../../components/ThemedUI';
 import { db } from '../../../services/supabase';
@@ -152,6 +152,32 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleClearData = () => {
+    Alert.alert(
+      '⚠️ Clear All Test Data',
+      'This will permanently delete ALL records from:\n\n• Clients\n• Products\n• Billing Transactions\n\nThis action cannot be undone!',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Everything',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setRefreshing(true);
+              await db.system.clearTestData();
+              Alert.alert('✅ Done', 'All test data has been cleared successfully.');
+            } catch (e) {
+              console.error('Clear data failed:', e);
+              Alert.alert('❌ Error', 'Failed to clear data. Check the console for details.');
+            } finally {
+              setRefreshing(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <TView style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -246,6 +272,14 @@ export default function SettingsScreen() {
           />
         </SettingGroup>
 
+        {/* ⚠️ FOR TESTING ONLY — remove before production release */}
+        <TouchableOpacity
+          onPress={handleClearData}
+          style={[styles.dangerBtn, { borderColor: COLORS.danger + '40' }]}
+        >
+          <TText style={{ color: COLORS.danger, fontWeight: '800', fontSize: 13 }}>🧨  Clear Data (Testing Only)</TText>
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => router.replace('/(auth)/login')}
           style={[styles.logoutBtn, { borderColor: COLORS.danger + '40' }]}
@@ -276,4 +310,5 @@ const styles = StyleSheet.create({
   itemContent: { flex: 1 },
   miniInput: { width: 60, height: 32, borderRadius: 8, paddingHorizontal: 10, fontSize: 12, fontWeight: '800' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 56, borderRadius: RADIUS.xl, borderWidth: 1, marginTop: 10 },
+  dangerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 48, borderRadius: RADIUS.xl, borderWidth: 1.5, borderStyle: 'dashed', marginTop: 10 },
 });

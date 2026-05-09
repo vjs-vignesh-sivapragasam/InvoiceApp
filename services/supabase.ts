@@ -452,6 +452,19 @@ export const db = {
         console.error('Backup Creation Failed:', err);
         throw err;
       }
+    },
+    // ⚠️ FOR TESTING ONLY — clears ClientDetails, Products, BillingTransaction
+    async clearTestData() {
+      console.warn('🧨 clearTestData: Deleting all records from test tables...');
+      const [bills, clients, products] = await Promise.all([
+        supabase.from('billingtransaction').delete().neq('transactionid', 0),
+        supabase.from('clientdetails').delete().neq('clientid', 0),
+        supabase.from('products').delete().neq('productid', 0),
+      ]);
+      if (bills.error) throw bills.error;
+      if (clients.error) throw clients.error;
+      if (products.error) throw products.error;
+      console.log('✅ clearTestData: All test records deleted.');
     }
   }
 };

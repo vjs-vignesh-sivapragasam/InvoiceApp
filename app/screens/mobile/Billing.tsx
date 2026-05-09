@@ -474,29 +474,48 @@ const MobileBilling = () => {
                     billNo: billNo,
                     billDate: billDate,
                     withGST: gstEnabled,
+                    docType: docType,
                     items: items.map(it => {
-                      const taxable = parseFloat(it.qty) * parseFloat(it.price);
-                      const rate = gstEnabled ? parseFloat(billGST) : 0;
-                      const taxTotal = taxable * (rate / 100);
+                      const qty = parseFloat(it.qty) || 0;
+                      const basePrice = parseFloat(it.price) || 0;
+                      const lineSubtotal = qty * basePrice;
+
+                      // Apply bill-level discount proportionally per line
+                      const discPerc = parseFloat(discount) || 0;
+                      const discAmount = lineSubtotal * (discPerc / 100);
+                      const taxableLineAmount = lineSubtotal - discAmount;
+
+                      // GST on taxable amount
+                      const gstRate = gstEnabled ? parseFloat(billGST) : 0;
+                      const lineTax = taxableLineAmount * (gstRate / 100);
+                      const cgst = lineTax / 2;
+                      const sgst = lineTax / 2;
+
+                      // Net rate = (taxable per unit) + (tax per unit)
+                      const netRatePerUnit = qty > 0 ? (taxableLineAmount + lineTax) / qty : 0;
+
                       return {
                         name: it.name || '---',
                         hsn: it.hsn || '---',
                         box: it.qty,
                         pieces: it.pieces,
-                        price: parseFloat(it.price).toFixed(2),
-                        cgst: (taxTotal / 2).toFixed(2),
-                        sgst: (taxTotal / 2).toFixed(2),
-                        rate: (parseFloat(it.price) * (1 + rate / 100)).toFixed(2),
-                        amount: (taxable + taxTotal).toFixed(2)
+                        price: basePrice.toFixed(2),
+                        disc: discPerc > 0 ? `${discPerc}% - ${discAmount.toFixed(2)}` : '0% - 0.00',
+                        cgst: cgst.toFixed(2),
+                        sgst: sgst.toFixed(2),
+                        rate: netRatePerUnit.toFixed(2),
+                        amount: (taxableLineAmount + lineTax).toFixed(2)
                       };
                     }),
-                    summary: {
-                      totalQty: items.reduce((acc, it) => acc + (parseFloat(it.qty) || 0), 0).toString(),
-                      totalAmount: calculateTotal().toFixed(2),
-                      beforeTax: calculateSubtotal().toFixed(2),
-                      afterTax: calculateTotal().toFixed(2)
-                    },
-                    docType: docType
+                    summary: (() => {
+                      const calcs = getCalculations();
+                      return {
+                        totalQty: items.reduce((acc, it) => acc + (parseFloat(it.qty) || 0), 0).toString(),
+                        totalAmount: calcs.totalAmount.toFixed(2),
+                        beforeTax: calcs.taxableAmount.toFixed(2),
+                        afterTax: calcs.totalAmount.toFixed(2),
+                      };
+                    })()
                   }}
                 />
               </TView>
