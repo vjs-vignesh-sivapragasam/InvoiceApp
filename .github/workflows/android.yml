@@ -34,6 +34,8 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: 🏗️ Build Release APK (Production, Unsigned)
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
         run: |
           cd android
           ./gradlew assembleRelease \
