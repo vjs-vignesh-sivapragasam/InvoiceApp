@@ -1,25 +1,29 @@
 workflows:
-  invoice-android-build:
-    name: InvoiceApp Android Release
+  invoiceapp-android-release:
+    name: InvoiceApp Android Release Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
     environment:
-      node: 20
-      java: 17
+      node: latest
+      java: latest
       groups:
         - EXPO
         - ANDROID_KEYSTORE
     cache:
       cache_paths:
         - $CM_BUILD_DIR/node_modules
-        - ~/.gradle/caches
+        - $HOME/.gradle/caches
     scripts:
       - name: Install dependencies
-        script: npm install --force
+        script: |
+          npm install --force
 
       - name: Extract app version from app.json
         script: |
           if [ -f "app.json" ]; then
             APP_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.version")
-            APP_NAME=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.slug.replace(/[^a-zA-Z0-9]/g, '')")
+            APP_NAME=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.name.replace(/[^a-zA-Z0-9]/g, '')")
+            
             echo "🤖 App Name: $APP_NAME"
             echo "📋 Version: $APP_VERSION"
             echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
@@ -33,7 +37,7 @@ workflows:
       - name: Clean and generate Android project
         script: |
           rm -rf ios android
-          npx expo prebuild --platform android --no-install
+          npx expo prebuild --platform android
 
       - name: Setup Android keystore
         script: |
@@ -41,33 +45,35 @@ workflows:
             echo "⚠️  No keystore provided, building unsigned APK"
             echo "UNSIGNED_BUILD=true" >> $CM_ENV
           else
-            echo "🔐 Keystore file detected: $KEYSTORE_FILE"
+            echo "🔐 Keystore file detected"
             echo "UNSIGNED_BUILD=false" >> $CM_ENV
           fi
 
       - name: Build Android release
         script: |
           cd android
-          chmod +x gradlew
           
+          # Shared gradle properties
+          GRADLE_PROPS="-x configureCMakeRelease -Pandroid.overridePathCheck=true"
+
           if [ "$UNSIGNED_BUILD" = "true" ]; then
             echo "📦 Building unsigned release APK"
-            ./gradlew assembleRelease -Pandroid.overridePathCheck=true
-            BUILD_OUTPUT="app/build/outputs/apk/release"
+            ./gradlew assembleRelease $GRADLE_PROPS
           else
             echo "📦 Building signed release APK"
             ./gradlew assembleRelease \
-              -Pandroid.overridePathCheck=true \
+              $GRADLE_PROPS \
               -Pandroid.injected.signing.store.file=$KEYSTORE_FILE \
               -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
               -Pandroid.injected.signing.key.alias=$KEYSTORE_ALIAS \
               -Pandroid.injected.signing.key.password=$KEYSTORE_KEY_PASSWORD
-            BUILD_OUTPUT="app/build/outputs/apk/release"
           fi
 
+          BUILD_OUTPUT="app/build/outputs/apk/release"
           if [ -f "$BUILD_OUTPUT/app-release.apk" ]; then
             APK_NAME="${APP_NAME}_v${APP_VERSION}_release.apk"
             cp "$BUILD_OUTPUT/app-release.apk" "../$APK_NAME"
+            ln -sf "$APK_NAME" "../latest-release.apk"
             echo "✅ Release APK created: $APK_NAME"
           else
             echo "❌ Failed to create release APK"
@@ -77,11 +83,16 @@ workflows:
       - name: Build Android App Bundle
         script: |
           cd android
+          
+          GRADLE_PROPS="-x configureCMakeRelease -Pandroid.overridePathCheck=true"
+
           if [ "$UNSIGNED_BUILD" = "true" ]; then
-            ./gradlew bundleRelease -Pandroid.overridePathCheck=true
+            echo "📦 Building unsigned App Bundle"
+            ./gradlew bundleRelease $GRADLE_PROPS
           else
+            echo "📦 Building signed App Bundle"
             ./gradlew bundleRelease \
-              -Pandroid.overridePathCheck=true \
+              $GRADLE_PROPS \
               -Pandroid.injected.signing.store.file=$KEYSTORE_FILE \
               -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
               -Pandroid.injected.signing.key.alias=$KEYSTORE_ALIAS \
@@ -91,6 +102,7 @@ workflows:
           if [ -f "app/build/outputs/bundle/release/app-release.aab" ]; then
             AAB_NAME="${APP_NAME}_v${APP_VERSION}_release.aab"
             cp "app/build/outputs/bundle/release/app-release.aab" "../$AAB_NAME"
+            ln -sf "$AAB_NAME" "../latest-release.aab"
             echo "✅ App Bundle created: $AAB_NAME"
           else
             echo "❌ Failed to create App Bundle"
@@ -100,33 +112,34 @@ workflows:
     artifacts:
       - "*.apk"
       - "*.aab"
+      - android/app/build/outputs/**/*
 
-  invoice-android-dev:
-    name: InvoiceApp Android Debug
+  invoiceapp-android-debug:
+    name: InvoiceApp Android Debug Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
     environment:
-      node: 20
-      java: 17
+      node: latest
+      java: latest
       groups:
         - EXPO
     cache:
       cache_paths:
         - $CM_BUILD_DIR/node_modules
-        - ~/.gradle/caches
+        - $HOME/.gradle/caches
     scripts:
       - name: Install dependencies
-        script: npm install --force
+        script: |
+          npm install --force
 
       - name: Extract app version from app.json
         script: |
           if [ -f "app.json" ]; then
             APP_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.version")
-            APP_NAME=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.slug.replace(/[^a-zA-Z0-9]/g, '')")
-            echo "🤖 App Name: $APP_NAME"
-            echo "📋 Version: $APP_VERSION"
+            APP_NAME=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.name.replace(/[^a-zA-Z0-9]/g, '')")
             echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
             echo "APP_NAME=$APP_NAME" >> $CM_ENV
           else
-            echo "⚠️  app.json not found, using default values"
             echo "APP_VERSION=1.0.0" >> $CM_ENV
             echo "APP_NAME=InvoiceApp" >> $CM_ENV
           fi
@@ -134,19 +147,19 @@ workflows:
       - name: Clean and generate Android project
         script: |
           rm -rf ios android
-          npx expo prebuild --platform android --no-install
+          npx expo prebuild --platform android
 
       - name: Build Android debug APK
         script: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug -Pandroid.overridePathCheck=true
+          echo "📦 Building debug APK"
+          ./gradlew assembleDebug -x configureCMakeDebug -Pandroid.overridePathCheck=true
 
           BUILD_OUTPUT="app/build/outputs/apk/debug"
-
           if [ -f "$BUILD_OUTPUT/app-debug.apk" ]; then
-            APK_NAME="${APP_NAME}_Dev_v${APP_VERSION}_debug.apk"
+            APK_NAME="${APP_NAME}_v${APP_VERSION}_debug.apk"
             cp "$BUILD_OUTPUT/app-debug.apk" "../$APK_NAME"
+            ln -sf "$APK_NAME" "../latest-debug.apk"
             echo "✅ Debug APK created: $APK_NAME"
           else
             echo "❌ Failed to create debug APK"
@@ -155,75 +168,4 @@ workflows:
 
     artifacts:
       - "*.apk"
-
-  invoice-ios-build:
-    name: InvoiceApp iOS Release
-    environment:
-      node: 20
-      xcode: latest
-      groups:
-        - EXPO
-    cache:
-      cache_paths:
-        - $CM_BUILD_DIR/node_modules
-        - $CM_BUILD_DIR/ios/Pods
-    scripts:
-      - name: Install dependencies
-        script: npm install --force
-
-      - name: Extract app version from app.json
-        script: |
-          if [ -f "app.json" ]; then
-            APP_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.version")
-            APP_NAME=$(node -p "JSON.parse(require('fs').readFileSync('app.json', 'utf8')).expo.slug.replace(/[^a-zA-Z0-9]/g, '')")
-            echo "📱 App Name: $APP_NAME"
-            echo "📋 Version: $APP_VERSION"
-            echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
-            echo "APP_NAME=$APP_NAME" >> $CM_ENV
-          else
-            echo "⚠️  app.json not found, using default values"
-            echo "APP_VERSION=1.0.0" >> $CM_ENV
-            echo "APP_NAME=InvoiceApp" >> $CM_ENV
-          fi
-
-      - name: Clean and generate iOS project
-        script: |
-          rm -rf ios android
-          npx expo prebuild --platform ios --no-install
-
-      - name: Install iOS dependencies
-        script: |
-          cd ios
-          pod install --repo-update
-
-      - name: Build with Xcode (unsigned)
-        script: |
-          cd ios
-          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
-          if [ -z "$WORKSPACE" ]; then
-            exit 1
-          fi
-
-          SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
-          
-          xcodebuild -workspace "$WORKSPACE" \
-            -scheme "$SCHEME_NAME" \
-            -configuration Release \
-            -destination generic/platform=iOS \
-            -archivePath "build/$SCHEME_NAME.xcarchive" \
-            archive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            DEVELOPMENT_TEAM=""
-
-          mkdir -p "build/Payload"
-          cp -r "build/$SCHEME_NAME.xcarchive/Products/Applications/"*.app "build/Payload/"
-
-          IPA_NAME="${APP_NAME}_v${APP_VERSION}.ipa"
-          cd build
-          zip -r "$IPA_NAME" Payload/
-          cp "$IPA_NAME" "../../$IPA_NAME"
-
-    artifacts:
-      - "*.ipa"
+      - android/app/build/outputs/**/*
