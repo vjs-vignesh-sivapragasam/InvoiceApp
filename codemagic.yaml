@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       node: latest
-      java: latest
+      java: 21
       groups:
         - EXPO
         - ANDROID_KEYSTORE
@@ -120,7 +120,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       node: latest
-      java: latest
+      java: 21
       groups:
         - EXPO
     cache:
